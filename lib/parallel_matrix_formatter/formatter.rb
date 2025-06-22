@@ -66,16 +66,26 @@ module ParallelMatrixFormatter
       
       # Debug: Log the example count (only if debugging is enabled)
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Process #{Process.pid}: Found #{total_examples} examples"
+        $stderr.puts "Process #{Process.pid}: Found #{total_examples} examples, orchestrator: #{@is_orchestrator_process}"
       end
 
       if @is_orchestrator_process
         start_orchestrator
         # Orchestrator process should also run tests to maximize parallelization
         if total_examples > 0
+          if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+            $stderr.puts "Process #{Process.pid}: Orchestrator starting process formatter with #{total_examples} examples"
+          end
           start_process_formatter(total_examples, orchestrator: @orchestrator, orchestrator_process: true)
+        else
+          if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+            $stderr.puts "Process #{Process.pid}: Orchestrator has no examples to run"
+          end
         end
       else
+        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          $stderr.puts "Process #{Process.pid}: Non-orchestrator starting process formatter with #{total_examples} examples"
+        end
         start_process_formatter(total_examples)
       end
     end
