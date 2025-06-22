@@ -32,3 +32,11 @@ display:
   column_width: 15
   show_time_digits: true
   rain_density: 0.7  # Probability of showing rain character vs space
+
+# Fade effect configuration for digital rain columns
+fade_effect:
+  enabled: true
+  column_height: 5  # Number of rows per column (vertical display)
+  fade_levels: 5    # Number of brightness levels (1 = brightest, 5 = dimmest)
+  bright_color: "bright_green"  # Color for the brightest characters
+  dim_color: "green"            # Color for the dimmest characters
