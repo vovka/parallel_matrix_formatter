@@ -72,7 +72,7 @@ module ParallelMatrixFormatter
 
     def render_test_dots(test_results)
       test_results.map do |result|
-        case result[:status]
+        case result["status"]&.to_sym
         when :passed
           char = @config['pass_symbols_chars'].sample
           colorize(char, @config['colors']['pass_dot'])

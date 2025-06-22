@@ -184,7 +184,7 @@ module ParallelMatrixFormatter
     def calculate_progress_percent
       return 0 if @total_examples.zero?
 
-      ((@current_example.to_f / @total_examples) * 100).round(1)
+      ((@current_example.to_f / @total_examples) * 100).to_i
     end
 
     def should_send_progress_update?(current_percent)
