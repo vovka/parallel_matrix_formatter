@@ -183,6 +183,10 @@ module ParallelMatrixFormatter
     def send_message(message)
       return unless @connected
 
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "ProcessFormatter: Sending #{message['type']} message from process #{@process_id}"
+      end
+
       begin
         if @orchestrator
           # Direct communication - call orchestrator's public handle method

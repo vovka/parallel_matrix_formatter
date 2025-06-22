@@ -61,6 +61,9 @@ module ParallelMatrixFormatter
 
     def handle_direct_message(message)
       # Public method to handle messages from same-process formatters
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "Orchestrator: Received direct #{message['type']} message from process #{message['process_id']}"
+      end
       handle_message(message)
     end
 
@@ -91,6 +94,12 @@ module ParallelMatrixFormatter
 
     def handle_process_registration(message)
       process_id = message['process_id']
+      
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "Orchestrator: Registering process #{process_id} with #{message['total_tests']} tests"
+        $stderr.puts "Orchestrator: Total registered processes: #{@processes.keys.length + 1}"
+      end
+      
       @processes[process_id] = {
         id: process_id,
         total_tests: message['total_tests'],
@@ -177,6 +186,10 @@ module ParallelMatrixFormatter
     def update_base_display
       return if @processes.empty?
 
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "Orchestrator: Updating display with #{@processes.size} processes: #{@processes.keys.join(', ')}"
+      end
+
       # Finalize previous line if one was already rendered
       finalize_current_line
 
@@ -190,6 +203,10 @@ module ParallelMatrixFormatter
           process[:progress_percent],
           @config['display']['column_width']
         )
+      end
+
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "Orchestrator: Rendered #{process_columns.size} process columns"
       end
 
       # Render base line (time + processes only)
