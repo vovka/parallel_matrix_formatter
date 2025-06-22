@@ -32,7 +32,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # Dependencies
-  spec.add_dependency 'psych', '~> 5.0'
   spec.add_dependency 'rainbow', '~> 3.0'
   spec.add_dependency 'rspec-core', '~> 3.0'
 

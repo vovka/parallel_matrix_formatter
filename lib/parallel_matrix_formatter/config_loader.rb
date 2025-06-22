@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'psych'
+require 'yaml'
 require 'pathname'
 
 module ParallelMatrixFormatter
@@ -74,7 +74,7 @@ module ParallelMatrixFormatter
     end
 
     def load_config_file(path)
-      Psych.safe_load(File.read(path), aliases: true)
+      YAML.safe_load(File.read(path), aliases: true)
     rescue Psych::SyntaxError => e
       raise ConfigError, "Invalid YAML in config file #{path}: #{e.message}"
     rescue StandardError => e
