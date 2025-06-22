@@ -1,0 +1,34 @@
+# Matrix Digital Rain Parallel RSpec Formatter Configuration
+
+# Digits configuration for time display
+digits:
+  use_custom: true
+  symbols: "０１２３４５６７８９"  # Full-width Japanese digits
+
+# Katakana alphabet for digital rain effect
+katakana_alphabet: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポァィゥェォャュョッ"
+
+# Symbols for test results
+pass_symbols: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
+fail_symbols: "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ"
+pending_symbol: "🥄"
+
+# Color configuration
+colors:
+  time: "green"
+  percent: "red"
+  rain: "green"
+  pass_dot: "green"
+  fail_dot: "red"
+  pending_dot: "white"
+
+# Update strategies
+update:
+  interval_seconds: 1
+  percent_thresholds: [5]  # Update when any process percentage increases by 5%
+
+# Display configuration
+display:
+  column_width: 15
+  show_time_digits: true
+  rain_density: 0.7  # Probability of showing rain character vs space

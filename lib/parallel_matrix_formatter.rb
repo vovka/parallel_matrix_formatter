@@ -1,0 +1,15 @@
+# frozen_string_literal: true
+
+require_relative "parallel_matrix_formatter/version"
+require_relative "parallel_matrix_formatter/config_loader"
+require_relative "parallel_matrix_formatter/suppression_layer"
+require_relative "parallel_matrix_formatter/orchestrator"
+require_relative "parallel_matrix_formatter/process_formatter"
+require_relative "parallel_matrix_formatter/digital_rain_renderer"
+require_relative "parallel_matrix_formatter/update_strategies"
+require_relative "parallel_matrix_formatter/ipc"
+require_relative "parallel_matrix_formatter/formatter"
+
+module ParallelMatrixFormatter
+  class Error < StandardError; end
+end

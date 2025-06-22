@@ -1,0 +1,97 @@
+# frozen_string_literal: true
+
+module ParallelMatrixFormatter
+  class SuppressionLayer
+    class NullIO
+      def write(*args); end
+      def puts(*args); end
+      def print(*args); end
+      def printf(*args); end
+      def flush; end
+      def sync=(*args); end
+      def close; end
+      def closed?; false; end
+      def tty?; false; end
+    end
+
+    SUPPRESSION_LEVELS = {
+      none: 0,
+      ruby_warnings: 1,
+      app_warnings: 2,
+      app_output: 3,
+      gem_output: 4,
+      all: 5
+    }.freeze
+
+    def self.suppress(level = :all)
+      new(level).suppress
+    end
+
+    def self.restore
+      @instance&.restore
+    end
+
+    def initialize(level = :all)
+      @level = level.is_a?(Symbol) ? SUPPRESSION_LEVELS[level] : level
+      @original_stdout = nil
+      @original_stderr = nil
+      @original_verbose = nil
+      @suppressed = false
+    end
+
+    def suppress
+      return if @suppressed || should_skip_suppression?
+
+      @original_stdout = $stdout
+      @original_stderr = $stderr
+      @original_verbose = $VERBOSE
+
+      if @level >= 1
+        $VERBOSE = nil
+      end
+      
+      if @level >= 3
+        $stderr = NullIO.new
+      end
+      
+      if @level >= 4
+        $stdout = NullIO.new
+      end
+      
+      if @level >= 5
+        $stdout = NullIO.new
+        $stderr = NullIO.new
+        $VERBOSE = nil
+      end
+
+      @suppressed = true
+      self.class.instance_variable_set(:@instance, self)
+    end
+
+    def restore
+      return unless @suppressed
+
+      $stdout = @original_stdout if @original_stdout
+      $stderr = @original_stderr if @original_stderr
+      $VERBOSE = @original_verbose unless @original_verbose.nil?
+
+      @suppressed = false
+      self.class.instance_variable_set(:@instance, nil)
+    end
+
+    private
+
+    def should_skip_suppression?
+      # Check various environment variables that might indicate we should not suppress output
+      env_vars = %w[
+        PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS
+        DEBUG
+        VERBOSE
+        CI_DEBUG
+        RUNNER_DEBUG
+      ]
+
+      env_vars.any? { |var| ENV[var] && ENV[var] != "false" }
+    end
+  end
+end
