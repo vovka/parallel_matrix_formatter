@@ -17,6 +17,7 @@ module ParallelMatrixFormatter
       @last_update_time = nil
       @running = false
       @displayed_test_count = 0  # Track how many test results have been displayed
+      @current_line_rendered = false  # Track if current line base has been rendered
     end
 
     def start
@@ -47,6 +48,9 @@ module ParallelMatrixFormatter
     def stop
       @running = false
       @ipc_server&.stop
+      
+      # Finalize current line before printing summaries
+      finalize_current_line
       
       # Clean up server path file
       server_file = '/tmp/parallel_matrix_formatter_server.path'
@@ -93,7 +97,7 @@ module ParallelMatrixFormatter
         test_results: []
       }
 
-      update_display
+      update_base_display
     end
 
     def handle_progress_update(message)
@@ -104,13 +108,16 @@ module ParallelMatrixFormatter
       process[:current_test] = message['current_test']
       process[:progress_percent] = message['progress_percent']
 
-      # Add test result if provided
-      process[:test_results] << message['test_result'] if message['test_result']
+      # If test result is provided, render it immediately
+      if message['test_result']
+        process[:test_results] << message['test_result']
+        render_live_test_result(message['test_result'])
+      end
 
-      # Check if we should update display
+      # Check if we should update display (for base line)
       return unless should_update_display?
 
-      update_display
+      update_base_display
     end
 
     def handle_failure(message)
@@ -131,7 +138,7 @@ module ParallelMatrixFormatter
       process[:end_time] = Time.now
       process[:progress_percent] = 100
 
-      update_display
+      update_base_display
 
       # Check if all processes are complete
       return unless all_processes_complete?
@@ -162,8 +169,11 @@ module ParallelMatrixFormatter
       should_update
     end
 
-    def update_display
+    def update_base_display
       return if @processes.empty?
+
+      # Finalize previous line if one was already rendered
+      finalize_current_line
 
       # Render time column
       time_column = @renderer.render_time_column
@@ -177,24 +187,30 @@ module ParallelMatrixFormatter
         )
       end
 
-      # Render test dots (only new test results since last display)
-      all_test_results = @processes.values.flat_map { |p| p[:test_results] }
-      new_test_results = all_test_results[@displayed_test_count..-1] || []
-      
-      test_dots = if new_test_results.any?
-                    @renderer.render_test_dots(new_test_results)
-                  else
-                    ''
-                  end
+      # Render base line (time + processes only)
+      base_line = @renderer.render_matrix_line(time_column, process_columns, '')
 
-      # Update displayed test count
-      @displayed_test_count = all_test_results.length
+      # Print base line and stay on same line for test dots
+      print "#{base_line} "
+      $stdout.flush
+      @current_line_rendered = true
+    end
 
-      # Render complete line
-      line = @renderer.render_matrix_line(time_column, process_columns, test_dots)
+    def render_live_test_result(test_result)
+      # Only render if we have a base line rendered
+      return unless @current_line_rendered
 
-      # Print to stdout (only the orchestrator should output)
-      puts line
+      test_dot = @renderer.render_test_dots([test_result])
+      print test_dot
+      $stdout.flush
+    end
+
+    def finalize_current_line
+      # Move to next line when we're done with current line
+      if @current_line_rendered
+        puts
+        @current_line_rendered = false
+      end
     end
 
     def all_processes_complete?
