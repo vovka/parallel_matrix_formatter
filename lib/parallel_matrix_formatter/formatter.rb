@@ -98,6 +98,8 @@ module ParallelMatrixFormatter
 
     def stop(_stop_notification)
       if @is_orchestrator_process
+        # Stop process formatter first if it exists (orchestrator process running tests)
+        @process_formatter&.stop
         # Give child processes time to complete
         sleep(@config['update']['interval_seconds'] || 1)
         @orchestrator&.stop
