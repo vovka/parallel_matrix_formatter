@@ -30,6 +30,11 @@ module ParallelMatrixFormatter
 
     def start(start_notification)
       total_examples = start_notification.count
+      
+      # Debug: Log the example count (only if debugging is enabled)
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "Process #{Process.pid}: Found #{total_examples} examples"
+      end
 
       if @is_orchestrator_process
         start_orchestrator
@@ -109,9 +114,10 @@ module ParallelMatrixFormatter
       when 'gem_output', '4'
         :gem_output
       when 'all', '5', nil
-        :all
+        # Default to moderate suppression to avoid interfering with RSpec
+        :app_output
       else
-        :all
+        :app_output
       end
     end
 
@@ -172,8 +178,13 @@ module ParallelMatrixFormatter
     end
 
     def start_process_formatter(total_examples)
-      @process_formatter = ProcessFormatter.new(@config)
-      @process_formatter.start(total_examples)
+      # Only start if there are examples to process
+      if total_examples > 0
+        @process_formatter = ProcessFormatter.new(@config)
+        @process_formatter.start(total_examples)
+      elsif ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "Process #{Process.pid}: No examples found, skipping process formatter"
+      end
     end
   end
 end

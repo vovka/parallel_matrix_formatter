@@ -16,8 +16,17 @@ module ParallelMatrixFormatter
 
     def start(total_examples)
       @total_examples = total_examples
+      
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "ProcessFormatter: Starting with #{total_examples} examples for process #{@process_id}"
+      end
+      
       connect_to_orchestrator
       register_with_orchestrator if @connected
+      
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "ProcessFormatter: Connected=#{@connected} for process #{@process_id}"
+      end
     end
 
     def example_started(_notification)
