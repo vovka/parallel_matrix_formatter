@@ -29,6 +29,10 @@ module ParallelMatrixFormatter
 
       # Store server path for child processes to connect
       ENV['PARALLEL_MATRIX_FORMATTER_SERVER'] = server_path
+      
+      # Also write to a file for other processes to read
+      server_file = '/tmp/parallel_matrix_formatter_server.path'
+      File.write(server_file, server_path)
 
       # Start processing messages
       process_messages
@@ -42,6 +46,11 @@ module ParallelMatrixFormatter
     def stop
       @running = false
       @ipc_server&.stop
+      
+      # Clean up server path file
+      server_file = '/tmp/parallel_matrix_formatter_server.path'
+      File.delete(server_file) if File.exist?(server_file)
+      
       print_final_summary
     end
 

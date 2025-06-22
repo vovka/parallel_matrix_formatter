@@ -31,7 +31,7 @@ module ParallelMatrixFormatter
     def start(start_notification)
       total_examples = start_notification.count
 
-      if orchestrator_process?
+      if @is_orchestrator_process
         start_orchestrator
       else
         start_process_formatter(total_examples)
@@ -66,6 +66,12 @@ module ParallelMatrixFormatter
 
     def close(_close_notification)
       @suppression_layer&.restore
+      
+      # Clean up lock file if we're the orchestrator
+      if @is_orchestrator_process
+        lock_file = '/tmp/parallel_matrix_formatter_orchestrator.lock'
+        File.delete(lock_file) if File.exist?(lock_file)
+      end
     end
 
     private
@@ -78,10 +84,15 @@ module ParallelMatrixFormatter
     end
 
     def setup_environment
+      # Determine if we're the orchestrator first
+      @is_orchestrator_process = orchestrator_process?
+      
       # Apply suppression layer based on configuration
       suppression_level = determine_suppression_level
       @suppression_layer = SuppressionLayer.new(suppression_level)
-      @suppression_layer.suppress unless orchestrator_process?
+      
+      # Suppress output for non-orchestrator processes
+      @suppression_layer.suppress unless @is_orchestrator_process
     end
 
     def determine_suppression_level
@@ -106,23 +117,56 @@ module ParallelMatrixFormatter
 
     def orchestrator_process?
       # Check if this is the main process that should act as orchestrator
-      # This could be determined by environment variables set by parallel_split_tests
-      # or by being the first process to start
-
-      # For now, use a simple heuristic: if no server path is set, we're the orchestrator
-      !ENV['PARALLEL_MATRIX_FORMATTER_SERVER'] || ENV['PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR'] == 'true'
+      # Use a file-based lock to ensure only one process becomes the orchestrator
+      
+      # If explicitly set as orchestrator, always return true
+      return true if ENV['PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR'] == 'true'
+      
+      # If server is already running, we're not the orchestrator
+      return false if ENV['PARALLEL_MATRIX_FORMATTER_SERVER']
+      
+      # Use file-based locking to determine orchestrator
+      lock_file = '/tmp/parallel_matrix_formatter_orchestrator.lock'
+      
+      begin
+        # Try to create lock file atomically
+        File.open(lock_file, File::CREAT | File::EXCL | File::WRONLY) do |f|
+          f.write(Process.pid.to_s)
+          f.flush
+          return true  # We successfully created the lock, so we're the orchestrator
+        end
+      rescue Errno::EEXIST
+        # Lock file already exists, check if the process is still running
+        begin
+          existing_pid = File.read(lock_file).to_i
+          # Check if process is still running
+          Process.kill(0, existing_pid)
+          return false  # Process is still running, we're not the orchestrator
+        rescue Errno::ESRCH, Errno::EPERM
+          # Process is not running, remove stale lock and try again
+          File.delete(lock_file) rescue nil
+          retry
+        rescue
+          return false  # Can't determine, assume we're not the orchestrator
+        end
+      rescue
+        # If we can't create the lock file, assume we're not the orchestrator
+        return false
+      end
     end
 
     def start_orchestrator
-      @is_orchestrator_process = true
       @orchestrator = Orchestrator.new(@config)
 
       server_path = @orchestrator.start
       if server_path
-        $stdout.puts 'Matrix Digital Rain formatter started (orchestrator mode)'
-        $stdout.puts "Server: #{server_path}"
+        # Only output if not suppressed
+        unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
+          $stderr.puts 'Matrix Digital Rain formatter started (orchestrator mode)'
+          $stderr.puts "Server: #{server_path}"
+        end
       else
-        warn 'Failed to start orchestrator - falling back to standard output'
+        warn 'Failed to start orchestrator - falling back to standard output' unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
         @suppression_layer&.restore
       end
     end

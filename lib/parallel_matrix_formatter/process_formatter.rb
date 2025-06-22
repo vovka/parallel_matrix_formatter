@@ -47,14 +47,34 @@ module ParallelMatrixFormatter
     private
 
     def connect_to_orchestrator
-      server_path = ENV.fetch('PARALLEL_MATRIX_FORMATTER_SERVER', nil)
-      return unless server_path
-
-      @ipc_client = IPC.create_client(server_path)
-      @ipc_client.connect
-      @connected = true
-    rescue IPC::IPCError
-      # Silently fail - orchestrator might not be available
+      # Wait for server to be available with retry
+      max_attempts = 50  # 5 seconds with 0.1 second intervals
+      attempts = 0
+      
+      while attempts < max_attempts
+        server_path = ENV.fetch('PARALLEL_MATRIX_FORMATTER_SERVER', nil)
+        
+        # If not in environment, try reading from file
+        if !server_path
+          server_file = '/tmp/parallel_matrix_formatter_server.path'
+          server_path = File.read(server_file).strip if File.exist?(server_file)
+        end
+        
+        break unless server_path  # No server configured
+        
+        begin
+          @ipc_client = IPC.create_client(server_path)
+          @ipc_client.connect
+          @connected = true
+          return
+        rescue IPC::IPCError
+          # Server not ready yet, wait and retry
+          attempts += 1
+          sleep(0.1) if attempts < max_attempts
+        end
+      end
+      
+      # Failed to connect after all attempts
       @connected = false
     end
 
