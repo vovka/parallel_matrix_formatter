@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require "socket"
-require "json"
-require "fileutils"
-require "tmpdir"
+require 'socket'
+require 'json'
+require 'fileutils'
+require 'tmpdir'
 
 module ParallelMatrixFormatter
   module IPC
@@ -22,12 +22,12 @@ module ParallelMatrixFormatter
         cleanup_socket
         @server = UNIXServer.new(@socket_path)
         @running = true
-        
+
         # Start accepting connections
         Thread.new { accept_connections }
         # Start message processing
         Thread.new { process_messages }
-        
+
         @socket_path
       rescue Errno::EADDRINUSE, Errno::EACCES => e
         raise IPCError, "Failed to start Unix socket server: #{e.message}"
@@ -40,13 +40,13 @@ module ParallelMatrixFormatter
         cleanup_socket
       end
 
-      def each_message(&block)
+      def each_message
         return enum_for(:each_message) unless block_given?
 
         loop do
           message = @message_queue.pop
           break if message == :stop
-          
+
           yield message
         end
       end
@@ -54,11 +54,13 @@ module ParallelMatrixFormatter
       def broadcast(message)
         json_message = JSON.generate(message)
         @clients.each do |client|
+          client.puts(json_message)
+        rescue IOError, Errno::EPIPE
+          @clients.delete(client)
           begin
-            client.puts(json_message)
-          rescue IOError, Errno::EPIPE
-            @clients.delete(client)
-            client.close rescue nil
+            client.close
+          rescue StandardError
+            nil
           end
         end
       end
@@ -90,19 +92,23 @@ module ParallelMatrixFormatter
           begin
             line = client.gets
             break unless line
-            
+
             message = JSON.parse(line.chomp)
             @message_queue << message
           rescue JSON::ParserError => e
             # Log parsing error but continue
-            @message_queue << { type: "error", error: "JSON parse error: #{e.message}" }
+            @message_queue << { type: 'error', error: "JSON parse error: #{e.message}" }
           rescue IOError, Errno::EPIPE
             break
           end
         end
       ensure
         @clients.delete(client)
-        client.close rescue nil
+        begin
+          client.close
+        rescue StandardError
+          nil
+        end
       end
 
       def process_messages
@@ -142,8 +148,8 @@ module ParallelMatrixFormatter
     class FileBasedIPC
       def initialize(base_path = nil)
         @base_path = base_path || File.join(Dir.tmpdir, "parallel_matrix_formatter_#{Process.pid}")
-        @inbox_path = File.join(@base_path, "inbox")
-        @outbox_path = File.join(@base_path, "outbox")
+        @inbox_path = File.join(@base_path, 'inbox')
+        @outbox_path = File.join(@base_path, 'outbox')
         @running = false
         @message_files = []
       end
@@ -163,7 +169,7 @@ module ParallelMatrixFormatter
       def send_message(message)
         filename = "#{Time.now.to_f}_#{Process.pid}_#{rand(1000)}.json"
         filepath = File.join(@inbox_path, filename)
-        
+
         File.write(filepath, JSON.generate(message))
         true
       rescue StandardError => e
@@ -181,10 +187,10 @@ module ParallelMatrixFormatter
 
       private
 
-      def process_inbox_messages(&block)
+      def process_inbox_messages
         return unless File.exist?(@inbox_path)
 
-        Dir.glob(File.join(@inbox_path, "*.json")).sort.each do |file|
+        Dir.glob(File.join(@inbox_path, '*.json')).sort.each do |file|
           next unless File.exist?(file)
 
           begin
@@ -194,8 +200,8 @@ module ParallelMatrixFormatter
             yield message
           rescue JSON::ParserError => e
             File.unlink(file) # Remove corrupted file
-            yield({ type: "error", error: "JSON parse error: #{e.message}" })
-          rescue StandardError => e
+            yield({ type: 'error', error: "JSON parse error: #{e.message}" })
+          rescue StandardError
             # Retry on next iteration
             break
           end
@@ -212,7 +218,7 @@ module ParallelMatrixFormatter
     end
 
     def self.create_client(server_path, prefer_unix_socket: true)
-      if prefer_unix_socket && unix_socket_supported? && server_path.end_with?(".sock")
+      if prefer_unix_socket && unix_socket_supported? && server_path.end_with?('.sock')
         UnixSocketClient.new(server_path)
       else
         FileBasedIPC.new(server_path)

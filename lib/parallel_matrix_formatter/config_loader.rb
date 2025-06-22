@@ -1,43 +1,43 @@
 # frozen_string_literal: true
 
-require "psych"
-require "pathname"
+require 'psych'
+require 'pathname'
 
 module ParallelMatrixFormatter
   class ConfigLoader
     class ConfigError < StandardError; end
 
     DEFAULT_CONFIG_PATHS = [
-      "parallel_matrix_formatter.yml",
-      "config/parallel_matrix_formatter.yml",
-      ".parallel_matrix_formatter.yml"
+      'parallel_matrix_formatter.yml',
+      'config/parallel_matrix_formatter.yml',
+      '.parallel_matrix_formatter.yml'
     ].freeze
 
     DEFAULT_CONFIG = {
-      "digits" => {
-        "use_custom" => false,
-        "symbols" => "0123456789"
+      'digits' => {
+        'use_custom' => false,
+        'symbols' => '0123456789'
       },
-      "katakana_alphabet" => "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン",
-      "pass_symbols" => "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン",
-      "fail_symbols" => "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ",
-      "pending_symbol" => "🥄",
-      "colors" => {
-        "time" => "green",
-        "percent" => "red",
-        "rain" => "green",
-        "pass_dot" => "green",
-        "fail_dot" => "red",
-        "pending_dot" => "white"
+      'katakana_alphabet' => 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン',
+      'pass_symbols' => 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン',
+      'fail_symbols' => 'ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ',
+      'pending_symbol' => '🥄',
+      'colors' => {
+        'time' => 'green',
+        'percent' => 'red',
+        'rain' => 'green',
+        'pass_dot' => 'green',
+        'fail_dot' => 'red',
+        'pending_dot' => 'white'
       },
-      "update" => {
-        "interval_seconds" => 1,
-        "percent_thresholds" => [5]
+      'update' => {
+        'interval_seconds' => 1,
+        'percent_thresholds' => [5]
       },
-      "display" => {
-        "column_width" => 15,
-        "show_time_digits" => true,
-        "rain_density" => 0.7
+      'display' => {
+        'column_width' => 15,
+        'show_time_digits' => true,
+        'rain_density' => 0.7
       }
     }.freeze
 
@@ -57,9 +57,10 @@ module ParallelMatrixFormatter
 
     def find_config_file
       # Check environment variable first
-      if ENV["PARALLEL_MATRIX_FORMATTER_CONFIG"]
-        path = Pathname.new(ENV["PARALLEL_MATRIX_FORMATTER_CONFIG"])
+      if ENV['PARALLEL_MATRIX_FORMATTER_CONFIG']
+        path = Pathname.new(ENV['PARALLEL_MATRIX_FORMATTER_CONFIG'])
         return path if path.exist?
+
         raise ConfigError, "Config file specified in PARALLEL_MATRIX_FORMATTER_CONFIG not found: #{path}"
       end
 
@@ -85,14 +86,14 @@ module ParallelMatrixFormatter
     end
 
     def validate_config(config)
-      validate_digits_section(config["digits"])
+      validate_digits_section(config['digits'])
       validate_required_sections(config)
     end
 
     def validate_digits_section(digits_config)
-      return unless digits_config["use_custom"]
+      return unless digits_config['use_custom']
 
-      symbols = digits_config["symbols"]
+      symbols = digits_config['symbols']
       return if symbols.nil?
 
       # Convert to array of characters to handle Unicode properly
@@ -113,16 +114,16 @@ module ParallelMatrixFormatter
 
     def process_config(config)
       # Convert symbol strings to character arrays for easier sampling
-      config["katakana_alphabet_chars"] = config["katakana_alphabet"].chars
-      config["pass_symbols_chars"] = config["pass_symbols"].chars
-      config["fail_symbols_chars"] = config["fail_symbols"].chars
-      
+      config['katakana_alphabet_chars'] = config['katakana_alphabet'].chars
+      config['pass_symbols_chars'] = config['pass_symbols'].chars
+      config['fail_symbols_chars'] = config['fail_symbols'].chars
+
       # Process digits
-      if config["digits"]["use_custom"]
-        config["digits"]["symbols_chars"] = config["digits"]["symbols"].chars
-      else
-        config["digits"]["symbols_chars"] = "0123456789".chars
-      end
+      config['digits']['symbols_chars'] = if config['digits']['use_custom']
+                                            config['digits']['symbols'].chars
+                                          else
+                                            '0123456789'.chars
+                                          end
 
       config
     end
@@ -130,11 +131,11 @@ module ParallelMatrixFormatter
     def deep_merge(hash1, hash2)
       result = hash1.dup
       hash2.each do |key, value|
-        if result[key].is_a?(Hash) && value.is_a?(Hash)
-          result[key] = deep_merge(result[key], value)
-        else
-          result[key] = value
-        end
+        result[key] = if result[key].is_a?(Hash) && value.is_a?(Hash)
+                        deep_merge(result[key], value)
+                      else
+                        value
+                      end
       end
       result
     end

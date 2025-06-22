@@ -8,7 +8,7 @@ module ParallelMatrixFormatter
       end
 
       def should_update?(_current_progress, _last_update_time, _last_progress)
-        raise NotImplementedError, "Subclasses must implement should_update?"
+        raise NotImplementedError, 'Subclasses must implement should_update?'
       end
 
       def reset
@@ -19,13 +19,13 @@ module ParallelMatrixFormatter
     class TimeBasedStrategy < BaseStrategy
       def initialize(config)
         super
-        @interval = @config["update"]["interval_seconds"] || 1
+        @interval = @config['update']['interval_seconds'] || 1
         @last_update_time = nil
       end
 
-      def should_update?(current_progress, last_update_time, last_progress)
+      def should_update?(_current_progress, _last_update_time, _last_progress)
         return true if @last_update_time.nil?
-        
+
         current_time = Time.now.to_f
         current_time - @last_update_time >= @interval
       end
@@ -38,15 +38,15 @@ module ParallelMatrixFormatter
     class PercentageBasedStrategy < BaseStrategy
       def initialize(config)
         super
-        @thresholds = @config["update"]["percent_thresholds"] || [5]
+        @thresholds = @config['update']['percent_thresholds'] || [5]
         @last_threshold_reached = {}
       end
 
-      def should_update?(current_progress, last_update_time, last_progress)
+      def should_update?(current_progress, _last_update_time, last_progress)
         return true if last_progress.nil?
 
         progress_diff = current_progress - last_progress
-        
+
         @thresholds.any? do |threshold|
           progress_diff >= threshold
         end
@@ -105,8 +105,8 @@ module ParallelMatrixFormatter
 
     def self.create_strategy(config)
       # Determine which strategy to use based on config
-      has_interval = config["update"]["interval_seconds"]
-      has_thresholds = config["update"]["percent_thresholds"] && !config["update"]["percent_thresholds"].empty?
+      has_interval = config['update']['interval_seconds']
+      has_thresholds = config['update']['percent_thresholds'] && !config['update']['percent_thresholds'].empty?
 
       strategy_name = if has_interval && has_thresholds
                         :combined

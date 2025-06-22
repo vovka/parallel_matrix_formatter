@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "ipc"
+require_relative 'ipc'
 
 module ParallelMatrixFormatter
   class ProcessFormatter
@@ -47,13 +47,13 @@ module ParallelMatrixFormatter
     private
 
     def connect_to_orchestrator
-      server_path = ENV["PARALLEL_MATRIX_FORMATTER_SERVER"]
+      server_path = ENV['PARALLEL_MATRIX_FORMATTER_SERVER']
       return unless server_path
 
       @ipc_client = IPC.create_client(server_path)
       @ipc_client.connect
       @connected = true
-    rescue IPC::IPCError => e
+    rescue IPC::IPCError
       # Silently fail - orchestrator might not be available
       @connected = false
     end
@@ -62,12 +62,12 @@ module ParallelMatrixFormatter
       return unless @connected
 
       message = {
-        type: "register",
+        type: 'register',
         process_id: @process_id,
         total_tests: @total_examples,
         timestamp: Time.now.to_f
       }
-      
+
       send_message(message)
     end
 
@@ -75,20 +75,20 @@ module ParallelMatrixFormatter
       return unless @connected
 
       progress_percent = calculate_progress_percent
-      
+
       # Only send if progress has changed significantly or at certain intervals
-      if should_send_progress_update?(progress_percent)
-        message = {
-          type: "progress",
-          process_id: @process_id,
-          current_test: @current_example,
-          progress_percent: progress_percent,
-          timestamp: Time.now.to_f
-        }
-        
-        send_message(message)
-        @last_progress_percent = progress_percent
-      end
+      return unless should_send_progress_update?(progress_percent)
+
+      message = {
+        type: 'progress',
+        process_id: @process_id,
+        current_test: @current_example,
+        progress_percent: progress_percent,
+        timestamp: Time.now.to_f
+      }
+
+      send_message(message)
+      @last_progress_percent = progress_percent
     end
 
     def send_test_result(notification, status)
@@ -101,14 +101,14 @@ module ParallelMatrixFormatter
       }
 
       message = {
-        type: "progress",
+        type: 'progress',
         process_id: @process_id,
         current_test: @current_example,
         progress_percent: calculate_progress_percent,
         test_result: test_result,
         timestamp: Time.now.to_f
       }
-      
+
       send_message(message)
     end
 
@@ -117,15 +117,15 @@ module ParallelMatrixFormatter
 
       exception = notification.exception
       message = {
-        type: "failure",
+        type: 'failure',
         process_id: @process_id,
         description: notification.example.full_description,
         location: notification.example.location,
-        message: exception ? exception.message : "Unknown error",
+        message: exception ? exception.message : 'Unknown error',
         backtrace: exception ? exception.backtrace : [],
         timestamp: Time.now.to_f
       }
-      
+
       send_message(message)
     end
 
@@ -133,11 +133,11 @@ module ParallelMatrixFormatter
       return unless @connected
 
       message = {
-        type: "complete",
+        type: 'complete',
         process_id: @process_id,
         timestamp: Time.now.to_f
       }
-      
+
       send_message(message)
     end
 
@@ -146,26 +146,26 @@ module ParallelMatrixFormatter
 
       begin
         @ipc_client.send_message(message)
-      rescue IPC::IPCError => e
+      rescue IPC::IPCError
         # Connection lost, mark as disconnected
         @connected = false
       end
     end
 
     def calculate_progress_percent
-      return 0 if @total_examples == 0
-      
+      return 0 if @total_examples.zero?
+
       ((@current_example.to_f / @total_examples) * 100).round(1)
     end
 
     def should_send_progress_update?(current_percent)
       # Always send first update
-      return true if @last_progress_percent == 0 && current_percent > 0
-      
+      return true if @last_progress_percent.zero? && current_percent.positive?
+
       # Send if progress threshold is met
-      thresholds = @config["update"]["percent_thresholds"] || [5]
+      thresholds = @config['update']['percent_thresholds'] || [5]
       progress_diff = current_percent - @last_progress_percent
-      
+
       thresholds.any? { |threshold| progress_diff >= threshold }
     end
   end

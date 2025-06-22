@@ -10,8 +10,14 @@ module ParallelMatrixFormatter
       def flush; end
       def sync=(*args); end
       def close; end
-      def closed?; false; end
-      def tty?; false; end
+
+      def closed?
+        false
+      end
+
+      def tty?
+        false
+      end
     end
 
     SUPPRESSION_LEVELS = {
@@ -46,18 +52,12 @@ module ParallelMatrixFormatter
       @original_stderr = $stderr
       @original_verbose = $VERBOSE
 
-      if @level >= 1
-        $VERBOSE = nil
-      end
-      
-      if @level >= 3
-        $stderr = NullIO.new
-      end
-      
-      if @level >= 4
-        $stdout = NullIO.new
-      end
-      
+      $VERBOSE = nil if @level >= 1
+
+      $stderr = NullIO.new if @level >= 3
+
+      $stdout = NullIO.new if @level >= 4
+
       if @level >= 5
         $stdout = NullIO.new
         $stderr = NullIO.new
@@ -91,7 +91,7 @@ module ParallelMatrixFormatter
         RUNNER_DEBUG
       ]
 
-      env_vars.any? { |var| ENV[var] && ENV[var] != "false" }
+      env_vars.any? { |var| ENV[var] && ENV[var] != 'false' }
     end
   end
 end
