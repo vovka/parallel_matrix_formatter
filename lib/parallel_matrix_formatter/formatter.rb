@@ -92,12 +92,24 @@ module ParallelMatrixFormatter
       # Determine if we're the orchestrator first
       @is_orchestrator_process = orchestrator_process?
       
+      # Debug output before suppression
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "Process #{Process.pid}: orchestrator=#{@is_orchestrator_process}"
+      end
+      
       # Apply suppression layer based on configuration
       suppression_level = determine_suppression_level
       @suppression_layer = SuppressionLayer.new(suppression_level)
       
-      # Suppress output for non-orchestrator processes
-      @suppression_layer.suppress unless @is_orchestrator_process
+      # Suppress output for non-orchestrator processes, or if forced for all processes
+      should_suppress = !@is_orchestrator_process || ENV['PARALLEL_MATRIX_FORMATTER_FORCE_SUPPRESS']
+      
+      if should_suppress
+        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          $stderr.puts "Process #{Process.pid}: Applying suppression level #{suppression_level}"
+        end
+        @suppression_layer.suppress
+      end
     end
 
     def determine_suppression_level
@@ -114,10 +126,10 @@ module ParallelMatrixFormatter
       when 'gem_output', '4'
         :gem_output
       when 'all', '5', nil
-        # Default to moderate suppression to avoid interfering with RSpec
-        :app_output
+        # Default to full suppression for non-orchestrator processes
+        :all
       else
-        :app_output
+        :all
       end
     end
 

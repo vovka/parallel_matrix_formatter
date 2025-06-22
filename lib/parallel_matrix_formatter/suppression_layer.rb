@@ -83,13 +83,15 @@ module ParallelMatrixFormatter
 
     def should_skip_suppression?
       # Check various environment variables that might indicate we should not suppress output
+      # Only skip suppression if explicitly disabled, not for general debug flags
       env_vars = %w[
         PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS
-        DEBUG
-        VERBOSE
-        CI_DEBUG
-        RUNNER_DEBUG
       ]
+
+      # Only check for general debug flags if explicitly enabled
+      if ENV['PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG']
+        env_vars += %w[DEBUG VERBOSE CI_DEBUG RUNNER_DEBUG]
+      end
 
       env_vars.any? { |var| ENV.fetch(var, nil) && ENV[var] != 'false' }
     end
