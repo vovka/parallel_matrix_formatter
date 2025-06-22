@@ -18,7 +18,7 @@ module ParallelMatrixFormatter
                                      :close
 
     def initialize(output)
-      super(output)
+      super
       @config = load_config
       @process_formatter = nil
       @orchestrator = nil
@@ -86,7 +86,7 @@ module ParallelMatrixFormatter
 
     def determine_suppression_level
       # Check environment variables for suppression control
-      case ENV['PARALLEL_MATRIX_FORMATTER_SUPPRESS']
+      case ENV.fetch('PARALLEL_MATRIX_FORMATTER_SUPPRESS', nil)
       when 'none', '0', 'false'
         :none
       when 'ruby_warnings', '1'

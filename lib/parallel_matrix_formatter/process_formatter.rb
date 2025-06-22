@@ -47,7 +47,7 @@ module ParallelMatrixFormatter
     private
 
     def connect_to_orchestrator
-      server_path = ENV['PARALLEL_MATRIX_FORMATTER_SERVER']
+      server_path = ENV.fetch('PARALLEL_MATRIX_FORMATTER_SERVER', nil)
       return unless server_path
 
       @ipc_client = IPC.create_client(server_path)

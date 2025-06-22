@@ -91,7 +91,7 @@ module ParallelMatrixFormatter
         RUNNER_DEBUG
       ]
 
-      env_vars.any? { |var| ENV[var] && ENV[var] != 'false' }
+      env_vars.any? { |var| ENV.fetch(var, nil) && ENV[var] != 'false' }
     end
   end
 end

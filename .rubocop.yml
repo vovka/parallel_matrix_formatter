@@ -1,0 +1,55 @@
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 2.7
+
+# Allow longer lines for descriptive error messages and documentation
+Layout/LineLength:
+  Max: 150
+
+# Allow larger classes for main components that have clear single responsibilities
+Metrics/ClassLength:
+  Max: 200
+
+# Allow longer methods for rendering methods that need to be cohesive
+Metrics/MethodLength:
+  Max: 30
+
+# Allow higher complexity for rendering methods
+Metrics/AbcSize:
+  Max: 50
+
+Metrics/CyclomaticComplexity:
+  Max: 15
+
+Metrics/PerceivedComplexity:
+  Max: 15
+
+# Allow more parameters for rendering methods that need comprehensive configuration
+Metrics/ParameterLists:
+  Max: 8
+
+# Allow larger test blocks
+Metrics/BlockLength:
+  Max: 100
+  Exclude:
+    - 'spec/**/*'
+
+# Don't require documentation for all classes in initial implementation
+Style/Documentation:
+  Enabled: false
+
+# Allow empty rescue blocks for IPC error handling
+Lint/SuppressedException:
+  Enabled: false
+
+# Don't enforce predicate method naming for internal methods
+Naming/PredicateMethod:
+  Enabled: false
+
+# Allow gemspec development dependencies for now
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+# Allow duplicate branch bodies for configuration switches
+Lint/DuplicateBranch:
+  Enabled: false

@@ -72,7 +72,7 @@ module ParallelMatrixFormatter
       end
 
       def cleanup_socket
-        File.unlink(@socket_path) if File.exist?(@socket_path)
+        FileUtils.rm_f(@socket_path)
       end
 
       def accept_connections
@@ -163,7 +163,7 @@ module ParallelMatrixFormatter
 
       def stop
         @running = false
-        FileUtils.rm_rf(@base_path) if File.exist?(@base_path)
+        FileUtils.rm_rf(@base_path)
       end
 
       def send_message(message)
