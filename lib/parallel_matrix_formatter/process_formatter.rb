@@ -4,7 +4,7 @@ require_relative 'ipc'
 
 module ParallelMatrixFormatter
   class ProcessFormatter
-    def initialize(config, process_id = nil)
+    def initialize(config, process_id = nil, orchestrator = nil)
       @config = config
       @process_id = process_id || Process.pid
       @ipc_client = nil
@@ -12,6 +12,7 @@ module ParallelMatrixFormatter
       @current_example = 0
       @last_progress_percent = 0
       @connected = false
+      @orchestrator = orchestrator  # Direct reference when in same process
     end
 
     def start(total_examples)
@@ -21,7 +22,16 @@ module ParallelMatrixFormatter
         $stderr.puts "ProcessFormatter: Starting with #{total_examples} examples for process #{@process_id}"
       end
       
-      connect_to_orchestrator
+      # If we have a direct orchestrator reference, use it; otherwise connect via IPC
+      if @orchestrator
+        @connected = true
+        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          $stderr.puts "ProcessFormatter: Using direct orchestrator communication for process #{@process_id}"
+        end
+      else
+        connect_to_orchestrator
+      end
+      
       register_with_orchestrator if @connected
       
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
@@ -174,9 +184,21 @@ module ParallelMatrixFormatter
       return unless @connected
 
       begin
-        @ipc_client.send_message(message)
+        if @orchestrator
+          # Direct communication - call orchestrator's public handle method
+          @orchestrator.handle_direct_message(message)
+        else
+          # IPC communication
+          @ipc_client.send_message(message)
+        end
       rescue IPC::IPCError
         # Connection lost, mark as disconnected
+        @connected = false
+      rescue => e
+        # Handle any other errors from direct communication
+        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          $stderr.puts "ProcessFormatter: Error sending message: #{e.message}"
+        end
         @connected = false
       end
     end

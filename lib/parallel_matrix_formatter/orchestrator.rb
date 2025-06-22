@@ -59,6 +59,11 @@ module ParallelMatrixFormatter
       print_final_summary
     end
 
+    def handle_direct_message(message)
+      # Public method to handle messages from same-process formatters
+      handle_message(message)
+    end
+
     private
 
     def process_messages
