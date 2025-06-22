@@ -16,17 +16,31 @@ module ParallelMatrixFormatter
       
       # Only apply early suppression if we detect we're in a parallel testing environment
       if ENV['PARALLEL_SPLIT_TEST_PROCESSES'] || ENV['PARALLEL_WORKERS'] || ENV['TEST_ENV_NUMBER']
-        # Apply minimal suppression early to prevent output leakage during class loading
-        @@early_suppression_layer = SuppressionLayer.new(:all)
-        @@early_suppression_layer.suppress
-        @@early_suppression_applied = true
-        
-        # This will be restored/overridden when the actual formatter is initialized
+        begin
+          # Apply minimal suppression early to prevent output leakage during class loading
+          @@early_suppression_layer = SuppressionLayer.new(:all)
+          @@early_suppression_layer.suppress
+          @@early_suppression_applied = true
+          
+          # This will be restored/overridden when the actual formatter is initialized
+        rescue => e
+          # If early suppression fails, don't break the test run
+          # Just continue without early suppression
+          warn "Warning: Early suppression failed: #{e.message}" if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        end
       end
     end
     
     # Apply early suppression as soon as the class is loaded
     apply_early_suppression_if_needed
+    
+    # Class method to reset state (useful for multiple test runs)
+    def self.reset_early_suppression
+      if @@early_suppression_applied
+        @@early_suppression_layer&.restore
+        @@early_suppression_applied = false
+      end
+    end
     RSpec::Core::Formatters.register self,
                                      :start,
                                      :example_started,
@@ -93,8 +107,12 @@ module ParallelMatrixFormatter
       
       # Also restore early suppression if it's still active
       if @@early_suppression_applied
-        @@early_suppression_layer&.restore
-        @@early_suppression_applied = false
+        begin
+          @@early_suppression_layer&.restore
+          @@early_suppression_applied = false
+        rescue => e
+          warn "Warning: Failed to restore early suppression in close: #{e.message}" if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        end
       end
       
       # Clean up lock file if we're the orchestrator
@@ -125,8 +143,12 @@ module ParallelMatrixFormatter
       # If early suppression was applied and we're the orchestrator, we need to restore it
       # so the orchestrator can output
       if @@early_suppression_applied && @is_orchestrator_process
-        @@early_suppression_layer&.restore
-        @@early_suppression_applied = false
+        begin
+          @@early_suppression_layer&.restore
+          @@early_suppression_applied = false
+        rescue => e
+          warn "Warning: Failed to restore early suppression: #{e.message}" if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        end
       end
       
       # Apply suppression layer based on configuration
