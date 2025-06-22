@@ -73,7 +73,7 @@ module ParallelMatrixFormatter
         start_orchestrator
         # Orchestrator process should also run tests to maximize parallelization
         if total_examples > 0
-          start_process_formatter(total_examples, orchestrator: @orchestrator)
+          start_process_formatter(total_examples, orchestrator: @orchestrator, orchestrator_process: true)
         end
       else
         start_process_formatter(total_examples)
@@ -249,10 +249,12 @@ module ParallelMatrixFormatter
       end
     end
 
-    def start_process_formatter(total_examples, orchestrator: nil)
+    def start_process_formatter(total_examples, orchestrator: nil, orchestrator_process: false)
       # Only start if there are examples to process
       if total_examples > 0
-        @process_formatter = ProcessFormatter.new(@config, nil, orchestrator)
+        # Give orchestrator process a unique identifier
+        process_id = orchestrator_process ? "#{Process.pid}-orchestrator" : nil
+        @process_formatter = ProcessFormatter.new(@config, process_id, orchestrator)
         @process_formatter.start(total_examples)
       elsif ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
         $stderr.puts "Process #{Process.pid}: No examples found, skipping process formatter"
