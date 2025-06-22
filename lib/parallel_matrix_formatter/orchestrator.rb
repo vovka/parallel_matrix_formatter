@@ -16,6 +16,7 @@ module ParallelMatrixFormatter
       @start_time = nil
       @last_update_time = nil
       @running = false
+      @displayed_test_count = 0  # Track how many test results have been displayed
     end
 
     def start
@@ -176,13 +177,18 @@ module ParallelMatrixFormatter
         )
       end
 
-      # Render test dots (collect all test results)
+      # Render test dots (only new test results since last display)
       all_test_results = @processes.values.flat_map { |p| p[:test_results] }
-      test_dots = if all_test_results.any?
-                    @renderer.render_test_dots(all_test_results)
+      new_test_results = all_test_results[@displayed_test_count..-1] || []
+      
+      test_dots = if new_test_results.any?
+                    @renderer.render_test_dots(new_test_results)
                   else
                     ''
                   end
+
+      # Update displayed test count
+      @displayed_test_count = all_test_results.length
 
       # Render complete line
       line = @renderer.render_matrix_line(time_column, process_columns, test_dots)
