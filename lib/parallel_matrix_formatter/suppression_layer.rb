@@ -60,7 +60,10 @@ module ParallelMatrixFormatter
 
       if @level >= 5
         $stdout = NullIO.new
-        $stderr = NullIO.new
+        # Only suppress stderr if debug mode is not enabled
+        unless ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          $stderr = NullIO.new
+        end
         $VERBOSE = nil
       end
 
