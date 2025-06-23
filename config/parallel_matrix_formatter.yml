@@ -21,6 +21,12 @@ colors:
   pass_dot: "green"
   fail_dot: "red"
   pending_dot: "white"
+  # Color output method: "auto", "rainbow", "ansi", or "none"
+  # auto: tries rainbow first, falls back to ansi
+  # rainbow: uses rainbow gem (may not work in all CI environments)
+  # ansi: uses direct ANSI escape codes (works in most CI environments)
+  # none: disables colors
+  method: "auto"
 
 # Update strategies
 update:

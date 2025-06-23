@@ -86,6 +86,17 @@ bundle exec rspec --format ParallelMatrixFormatter::Formatter
 - `NO_COLOR`: Disable color output
 - `FORCE_COLOR`: Force color output even if not detected
 
+### Color Support
+
+The formatter supports color output in terminals and CI environments including GitHub Actions. Color configuration options in `colors.method`:
+
+- `auto` (default): Automatically detects best color method (rainbow gem → ANSI fallback)
+- `rainbow`: Uses rainbow gem for colors (may not work in all CI environments)
+- `ansi`: Uses direct ANSI escape codes (works in most CI environments)
+- `none`: Disables color output
+
+The formatter automatically detects CI environments and enables colors when appropriate.
+
 ## Output Format
 
 The formatter displays a single line per update:

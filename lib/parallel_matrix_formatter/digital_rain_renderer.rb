@@ -1,12 +1,17 @@
 # frozen_string_literal: true
 
-require 'rainbow'
+begin
+  require 'rainbow'
+rescue LoadError
+  # Rainbow gem not available - will use ANSI fallback
+end
 
 module ParallelMatrixFormatter
   class DigitalRainRenderer
     def initialize(config)
       @config = config
       @terminal_colors = detect_color_support
+      @color_method = determine_color_method
     end
 
     def render_time_column
@@ -170,7 +175,7 @@ module ParallelMatrixFormatter
       srand_seed = process_id.to_s.hash.abs
 
       # Generate column matrix (height x width)
-      column_matrix = Array.new(column_height) do |row|
+      column_matrix = Array.new(column_height) do |_row|
         Array.new(width) do
           if rand < rain_density
             rain_chars.sample
@@ -181,7 +186,7 @@ module ParallelMatrixFormatter
       end
 
       # Determine bright spot position for this column (use seeded random)
-      Random.srand(srand_seed + Time.now.to_i / 5) # Change every 5 seconds for more dynamic effect
+      Random.srand(srand_seed + (Time.now.to_i / 5)) # Change every 5 seconds for more dynamic effect
       bright_row = Random.rand(column_height)
       Random.srand # Reset to unseeded random
 
@@ -206,9 +211,9 @@ module ParallelMatrixFormatter
       colored_rows = column_matrix.map.with_index do |row, row_index|
         row.map.with_index do |char, col_index|
           # Determine if this is part of the percentage display
-          is_percent = (row_index == percent_row &&
+          is_percent = row_index == percent_row &&
                        col_index >= percent_start &&
-                       col_index < percent_start + percent_str.length)
+                       col_index < percent_start + percent_str.length
 
           if is_percent
             colorize(char, percent_color)
@@ -258,26 +263,79 @@ module ParallelMatrixFormatter
         # Intermediate levels - create gradient effect
         case fade_level
         when 2
-          bright_color  # Still quite bright
+          bright_color # Still quite bright
         when 3
-          @config['colors']['rain']  # Medium brightness
+          @config['colors']['rain'] # Medium brightness
         else
-          dim_color  # Dimmer levels
+          dim_color # Dimmer levels
         end
       end
     end
 
     def detect_color_support
-      # Check for color support
+      # Check for explicit color disabling
       return false if ENV['NO_COLOR']
+
+      # Check for explicit color forcing
       return true if ENV['FORCE_COLOR']
 
-      # Check if stdout is a TTY
+      # Check configuration method
+      color_method = @config.dig('colors', 'method')&.to_s&.downcase
+      return false if color_method == 'none'
+
+      # Check for CI environments that support colors
+      ci_environments = %w[
+        CI CONTINUOUS_INTEGRATION
+        GITHUB_ACTIONS GITHUB_WORKFLOW
+        TRAVIS CIRCLECI JENKINS_URL
+        BUILDKITE GITLAB_CI
+        APPVEYOR TEAMCITY_VERSION
+      ]
+
+      return true if ci_environments.any? { |env| ENV[env] }
+
+      # Check if stdout is a TTY (traditional terminal detection)
       $stdout.tty?
+    end
+
+    def determine_color_method
+      color_method = @config.dig('colors', 'method')&.to_s&.downcase || 'auto'
+
+      case color_method
+      when 'rainbow'
+        :rainbow
+      when 'ansi'
+        :ansi
+      when 'none'
+        :none
+      else # 'auto'
+        :auto
+      end
     end
 
     def colorize(text, color)
       return text unless @terminal_colors
+
+      case @color_method
+      when :ansi
+        colorize_with_ansi(text, color)
+      when :rainbow
+        colorize_with_rainbow(text, color)
+      when :auto
+        # Try rainbow first, fallback to ANSI
+        begin
+          colorize_with_rainbow(text, color)
+        rescue StandardError
+          colorize_with_ansi(text, color)
+        end
+      else
+        text
+      end
+    end
+
+    def colorize_with_rainbow(text, color)
+      # Check if Rainbow is available
+      return colorize_with_ansi(text, color) unless defined?(Rainbow)
 
       case color.to_s.downcase
       when 'red'
@@ -298,6 +356,32 @@ module ParallelMatrixFormatter
         Rainbow(text).white
       when 'black'
         Rainbow(text).black
+      else
+        text
+      end
+    end
+
+    def colorize_with_ansi(text, color)
+      return text unless @terminal_colors
+
+      # ANSI color codes
+      color_codes = {
+        'red' => "\e[31m",
+        'green' => "\e[32m",
+        'bright_green' => "\e[1;32m",
+        'blue' => "\e[34m",
+        'yellow' => "\e[33m",
+        'cyan' => "\e[36m",
+        'magenta' => "\e[35m",
+        'white' => "\e[37m",
+        'black' => "\e[30m"
+      }
+
+      reset_code = "\e[0m"
+      color_code = color_codes[color.to_s.downcase]
+
+      if color_code
+        "#{color_code}#{text}#{reset_code}"
       else
         text
       end

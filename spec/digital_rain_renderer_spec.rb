@@ -109,4 +109,80 @@ RSpec.describe ParallelMatrixFormatter::DigitalRainRenderer do
       expect(result).to include('Processes: 2')
     end
   end
+
+  describe 'color support detection' do
+    it 'detects GitHub Actions CI environment' do
+      # Create config with colors enabled
+      ci_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
+      
+      # Mock GitHub Actions environment
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return('true')
+      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
+      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return(nil)
+      
+      renderer = described_class.new(ci_config)
+      result = renderer.render_process_column(1, 50, 15)
+      
+      # Should produce colored output in GitHub Actions
+      expect(result).to match(/\e\[[\d;]*m/) # Contains ANSI codes
+    end
+
+    it 'respects NO_COLOR environment variable' do
+      # Create config with colors enabled  
+      no_color_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
+      
+      # Mock NO_COLOR environment
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('NO_COLOR').and_return('1')
+      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return(nil)
+      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return(nil)
+      
+      renderer = described_class.new(no_color_config)
+      result = renderer.render_process_column(1, 50, 15)
+      
+      # Should not produce colored output when NO_COLOR is set
+      expect(result).not_to match(/\e\[[\d;]*m/) # No ANSI codes
+    end
+
+    it 'forces colors with FORCE_COLOR environment variable' do
+      # Create config with colors enabled
+      force_color_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
+      
+      # Mock FORCE_COLOR environment and non-TTY stdout
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return('1')
+      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
+      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return(nil)
+      allow($stdout).to receive(:tty?).and_return(false)
+      
+      renderer = described_class.new(force_color_config)
+      result = renderer.render_process_column(1, 50, 15)
+      
+      # Should produce colored output even when stdout is not a TTY
+      expect(result).to match(/\e\[[\d;]*m/) # Contains ANSI codes
+    end
+  end
+
+  describe 'ANSI color fallback' do
+    it 'uses direct ANSI codes when configured' do
+      # Create config with ANSI method specifically
+      ansi_config = config.merge('colors' => config['colors'].merge('method' => 'ansi'))
+      
+      # Mock environment to enable colors
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
+      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return('1')
+      
+      ansi_renderer = described_class.new(ansi_config)
+      result = ansi_renderer.render_process_column(1, 100, 15, true)
+      
+      # Should contain red ANSI code for 100% first completion
+      expect(result).to match(/\e\[31m/) # Red ANSI code
+      # Should contain green ANSI code for rain
+      expect(result).to match(/\e\[32m/) # Green ANSI code  
+      # Should contain reset code
+      expect(result).to match(/\e\[0m/) # Reset code
+    end
+  end
 end

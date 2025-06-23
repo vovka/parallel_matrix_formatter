@@ -28,7 +28,8 @@ module ParallelMatrixFormatter
         'rain' => 'green',
         'pass_dot' => 'green',
         'fail_dot' => 'red',
-        'pending_dot' => 'white'
+        'pending_dot' => 'white',
+        'method' => 'auto'
       },
       'update' => {
         'interval_seconds' => 1,
