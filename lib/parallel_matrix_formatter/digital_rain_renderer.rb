@@ -45,14 +45,17 @@ module ParallelMatrixFormatter
 
     def render_test_dots(test_results)
       test_results.map do |result|
-        case result[:status]
-        when :passed
+        # Handle both symbol and string status values (IPC converts symbols to strings)
+        status = result[:status] || result['status']
+        status_str = status.to_s
+        case status_str
+        when 'passed'
           char = @config['pass_symbols_chars'].sample
           colorize(char, @config['colors']['pass_dot'])
-        when :failed
+        when 'failed'
           char = @config['fail_symbols_chars'].sample
           colorize(char, @config['colors']['fail_dot'])
-        when :pending
+        when 'pending'
           char = @config['pending_symbol']
           colorize(char, @config['colors']['pending_dot'])
         else
