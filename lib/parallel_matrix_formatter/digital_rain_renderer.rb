@@ -30,7 +30,7 @@ module ParallelMatrixFormatter
 
     def render_process_column(process_id, progress_percent, column_width = nil, is_first_completion = false)
       width = column_width || @config['display']['column_width']
-      
+
       if @config['fade_effect']['enabled']
         render_fade_effect_column(process_id, progress_percent, width, is_first_completion)
       else
@@ -40,7 +40,7 @@ module ParallelMatrixFormatter
 
     def render_test_dots(test_results)
       test_results.map do |result|
-        case result["status"]&.to_sym
+        case result[:status]
         when :passed
           char = @config['pass_symbols_chars'].sample
           colorize(char, @config['colors']['pass_dot'])
@@ -165,10 +165,10 @@ module ParallelMatrixFormatter
       rain_density = @config['display']['rain_density']
       column_height = @config['fade_effect']['column_height']
       fade_levels = @config['fade_effect']['fade_levels']
-      
+
       # Create a seed based on process_id for consistent bright spot positioning
       srand_seed = process_id.to_s.hash.abs
-      
+
       # Generate column matrix (height x width)
       column_matrix = Array.new(column_height) do |row|
         Array.new(width) do
@@ -179,56 +179,56 @@ module ParallelMatrixFormatter
           end
         end
       end
-      
+
       # Determine bright spot position for this column (use seeded random)
       Random.srand(srand_seed + Time.now.to_i / 5) # Change every 5 seconds for more dynamic effect
       bright_row = Random.rand(column_height)
       Random.srand # Reset to unseeded random
-      
+
       # Overlay progress percentage on the middle row
       percent_str = "#{progress_percent}%"
       percent_row = column_height / 2
       percent_start = (width - percent_str.length) / 2
       percent_start = [0, percent_start].max
-      
+
       # Replace rain characters with percentage in the middle row
       percent_str.chars.each_with_index do |char, i|
         pos = percent_start + i
         break if pos >= width
-        
+
         column_matrix[percent_row][pos] = char
       end
-      
+
       # Determine percentage color based on completion status
       percent_color = determine_percent_color(progress_percent, is_first_completion)
-      
+
       # Convert matrix to colored string rows
       colored_rows = column_matrix.map.with_index do |row, row_index|
         row.map.with_index do |char, col_index|
           # Determine if this is part of the percentage display
-          is_percent = (row_index == percent_row && 
-                       col_index >= percent_start && 
+          is_percent = (row_index == percent_row &&
+                       col_index >= percent_start &&
                        col_index < percent_start + percent_str.length)
-          
+
           if is_percent
             colorize(char, percent_color)
           else
             # Calculate fade level based on distance from bright spot
             distance_from_bright = (row_index - bright_row).abs
             fade_level = [distance_from_bright + 1, fade_levels].min
-            
+
             # Apply fade effect coloring
             color = calculate_fade_color(fade_level, fade_levels)
             colorize(char, color)
           end
         end.join
       end
-      
+
       # Return the middle row to maintain current display compatibility
       # In the future, this could be enhanced to return the full multi-row display
       colored_rows[percent_row] || colored_rows.first || ''
     end
-    
+
     def determine_percent_color(progress_percent, is_first_completion)
       if progress_percent >= 100
         if is_first_completion
@@ -248,7 +248,7 @@ module ParallelMatrixFormatter
       # fade_level: 1 = brightest, max_levels = dimmest
       bright_color = @config['fade_effect']['bright_color']
       dim_color = @config['fade_effect']['dim_color']
-      
+
       case fade_level
       when 1
         bright_color
