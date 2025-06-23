@@ -32,7 +32,7 @@ module ParallelMatrixFormatter
 
       # Store server path for child processes to connect
       ENV['PARALLEL_MATRIX_FORMATTER_SERVER'] = server_path
-      
+
       # Also write to a file for other processes to read
       server_file = '/tmp/parallel_matrix_formatter_server.path'
       File.write(server_file, server_path)
@@ -49,14 +49,14 @@ module ParallelMatrixFormatter
     def stop
       @running = false
       @ipc_server&.stop
-      
+
       # Finalize current line before printing summaries
       finalize_current_line
-      
+
       # Clean up server path file
       server_file = '/tmp/parallel_matrix_formatter_server.path'
       File.delete(server_file) if File.exist?(server_file)
-      
+
       print_final_summary
     end
 
@@ -84,7 +84,7 @@ module ParallelMatrixFormatter
       # Normalize message to use string keys for consistent access
       # (IPC messages come with string keys, direct messages come with symbol keys)
       normalized_message = normalize_message_keys(message)
-      
+
       case normalized_message['type']
       when 'register'
         handle_process_registration(normalized_message)
@@ -98,7 +98,7 @@ module ParallelMatrixFormatter
         handle_error(normalized_message)
       end
     end
-    
+
     def normalize_message_keys(message)
       # Convert symbol keys to string keys for consistent access
       if message.is_a?(Hash)
@@ -110,12 +110,12 @@ module ParallelMatrixFormatter
 
     def handle_process_registration(message)
       process_id = message['process_id']
-      
+
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
         $stderr.puts "Orchestrator: Registering process #{process_id} with #{message['total_tests']} tests"
         $stderr.puts "Orchestrator: Total registered processes: #{@processes.keys.length + 1}"
       end
-      
+
       @processes[process_id] = {
         id: process_id,
         total_tests: message['total_tests'],
@@ -145,11 +145,11 @@ module ParallelMatrixFormatter
       # If test result is provided, render it immediately
       if message['test_result']
         process[:test_results] << message['test_result']
-        
+
         if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
           $stderr.puts "Orchestrator: Rendering live test result #{message['test_result']['status']} from process #{process_id}"
         end
-        
+
         render_live_test_result(message['test_result'])
       end
 
@@ -192,25 +192,25 @@ module ParallelMatrixFormatter
 
     def should_update_display?
       current_time = Time.now.to_f
-      
+
       # Check if any process has crossed a threshold
       threshold_crossed = false
       thresholds = @config['update']['percent_thresholds'] || [5]
-      
+
       @processes.each do |process_id, process|
         current_progress = process[:progress_percent]
         last_threshold = @process_thresholds[process_id] || 0
-        
+
         # Check if this process has crossed any threshold
         thresholds.each do |threshold|
           # Calculate the threshold levels this process has crossed
           current_threshold_level = (current_progress / threshold).floor * threshold
           last_threshold_level = (last_threshold / threshold).floor * threshold
-          
+
           if current_threshold_level > last_threshold_level
             threshold_crossed = true
             @process_thresholds[process_id] = current_progress
-            
+
             if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
               $stderr.puts "Orchestrator: Process #{process_id} crossed threshold: #{last_threshold_level}% -> #{current_threshold_level}%"
             end
@@ -222,7 +222,7 @@ module ParallelMatrixFormatter
       # Also check time-based strategy if configured
       time_based_update = false
       if @config['update']['interval_seconds']
-        time_based_update = (current_time - @last_update_time) >= @config['update']['interval_seconds']
+        time_based_update = (current_time - @last_update_time.to_f) / 1_000 >= @config['update']['interval_seconds']
       end
 
       should_update = threshold_crossed || time_based_update
@@ -251,12 +251,12 @@ module ParallelMatrixFormatter
       process_columns = @processes.values.map do |process|
         # Check if this is the first time showing 100%
         is_first_completion = (process[:progress_percent] >= 100 && !process[:first_completion_shown])
-        
+
         # Mark as shown if we're displaying 100% for the first time
         if is_first_completion
           process[:first_completion_shown] = true
         end
-        
+
         @renderer.render_process_column(
           process[:id],
           process[:progress_percent],
