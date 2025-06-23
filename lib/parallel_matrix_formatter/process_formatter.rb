@@ -89,10 +89,13 @@ module ParallelMatrixFormatter
         rescue IPC::IPCError
           # Server not ready yet, wait and retry
           attempts += 1
+          if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+            $stderr.puts "Process #{Process.pid} formatter: Connection attempt #{attempts} failed, retrying..."
+          end
           sleep(0.1) if attempts < max_attempts
         end
       end
-      
+
       # Failed to connect after all attempts
       @connected = false
     end
