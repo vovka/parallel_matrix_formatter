@@ -148,6 +148,10 @@ module ParallelMatrixFormatter
         timestamp: Time.now.to_f
       }
 
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        $stderr.puts "ProcessFormatter: Sending test result #{status} from process #{@process_id} (test #{@current_example}/#{@total_examples})"
+      end
+
       send_message(message)
     end
 

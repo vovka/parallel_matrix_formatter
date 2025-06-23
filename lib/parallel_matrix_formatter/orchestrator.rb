@@ -18,6 +18,7 @@ module ParallelMatrixFormatter
       @running = false
       @displayed_test_count = 0  # Track how many test results have been displayed
       @current_line_rendered = false  # Track if current line base has been rendered
+      @process_thresholds = {}  # Track threshold progress for each process
     end
 
     def start
@@ -127,6 +128,9 @@ module ParallelMatrixFormatter
         first_completion_shown: false
       }
 
+      # Initialize threshold tracking for this process
+      @process_thresholds[process_id] = 0
+
       update_base_display
     end
 
@@ -141,6 +145,11 @@ module ParallelMatrixFormatter
       # If test result is provided, render it immediately
       if message['test_result']
         process[:test_results] << message['test_result']
+        
+        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          $stderr.puts "Orchestrator: Rendering live test result #{message['test_result']['status']} from process #{process_id}"
+        end
+        
         render_live_test_result(message['test_result'])
       end
 
@@ -183,17 +192,43 @@ module ParallelMatrixFormatter
 
     def should_update_display?
       current_time = Time.now.to_f
+      
+      # Check if any process has crossed a threshold
+      threshold_crossed = false
+      thresholds = @config['update']['percent_thresholds'] || [5]
+      
+      @processes.each do |process_id, process|
+        current_progress = process[:progress_percent]
+        last_threshold = @process_thresholds[process_id] || 0
+        
+        # Check if this process has crossed any threshold
+        thresholds.each do |threshold|
+          # Calculate the threshold levels this process has crossed
+          current_threshold_level = (current_progress / threshold).floor * threshold
+          last_threshold_level = (last_threshold / threshold).floor * threshold
+          
+          if current_threshold_level > last_threshold_level
+            threshold_crossed = true
+            @process_thresholds[process_id] = current_progress
+            
+            if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+              $stderr.puts "Orchestrator: Process #{process_id} crossed threshold: #{last_threshold_level}% -> #{current_threshold_level}%"
+            end
+            break
+          end
+        end
+      end
 
-      # Get max progress for percentage-based updates
-      max_progress = @processes.values.map { |p| p[:progress_percent] }.max || 0
-      last_max_progress = @last_max_progress || 0
+      # Also check time-based strategy if configured
+      time_based_update = false
+      if @config['update']['interval_seconds']
+        time_based_update = (current_time - @last_update_time) >= @config['update']['interval_seconds']
+      end
 
-      should_update = @update_strategy.should_update?(max_progress, @last_update_time, last_max_progress)
+      should_update = threshold_crossed || time_based_update
 
       if should_update
         @last_update_time = current_time
-        @last_max_progress = max_progress
-        @update_strategy.reset
       end
 
       should_update
