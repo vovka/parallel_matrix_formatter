@@ -26,7 +26,8 @@ module ParallelMatrixFormatter
       app_warnings: 2,
       app_output: 3,
       gem_output: 4,
-      all: 5
+      all: 5,
+      runner: 6  # Complete suppression for test runners, ignores debug mode
     }.freeze
 
     def self.suppress(level = :all)
@@ -64,6 +65,13 @@ module ParallelMatrixFormatter
         unless ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
           $stderr = NullIO.new
         end
+        $VERBOSE = nil
+      end
+
+      # Level 6 (runner) - Complete suppression regardless of debug mode
+      if @level >= 6
+        $stdout = NullIO.new
+        $stderr = NullIO.new
         $VERBOSE = nil
       end
 

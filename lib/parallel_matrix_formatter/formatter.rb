@@ -17,8 +17,9 @@ module ParallelMatrixFormatter
       # Only apply early suppression if we detect we're in a parallel testing environment
       if ENV['PARALLEL_SPLIT_TEST_PROCESSES'] || ENV['PARALLEL_WORKERS'] || ENV['TEST_ENV_NUMBER']
         begin
-          # Apply minimal suppression early to prevent output leakage during class loading
-          @@early_suppression_layer = SuppressionLayer.new(:all)
+          # Apply complete suppression early to prevent output leakage during class loading
+          # Use 'runner' level for maximum suppression
+          @@early_suppression_layer = SuppressionLayer.new(:runner)
           @@early_suppression_layer.suppress
           @@early_suppression_applied = true
           
@@ -190,11 +191,16 @@ module ParallelMatrixFormatter
         :app_output
       when 'gem_output', '4'
         :gem_output
-      when 'all', '5', nil
-        # Default to full suppression for non-orchestrator processes
+      when 'all', '5'
         :all
+      when 'runner', '6'
+        :runner
+      when nil
+        # Default behavior: orchestrator uses 'all', non-orchestrator uses 'runner'
+        @is_orchestrator_process ? :all : :runner
       else
-        :all
+        # Default to runner suppression for non-orchestrator processes
+        @is_orchestrator_process ? :all : :runner
       end
     end
 
