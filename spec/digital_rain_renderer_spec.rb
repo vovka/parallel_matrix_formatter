@@ -26,6 +26,13 @@ RSpec.describe ParallelMatrixFormatter::DigitalRainRenderer do
         'column_width' => 15,
         'show_time_digits' => true,
         'rain_density' => 0.7
+      },
+      'fade_effect' => {
+        'enabled' => false,
+        'column_height' => 5,
+        'fade_levels' => 5,
+        'bright_color' => 'bright_green',
+        'dim_color' => 'green'
       }
     }
   end
@@ -50,6 +57,26 @@ RSpec.describe ParallelMatrixFormatter::DigitalRainRenderer do
       # Check if the result contains percentage digits (without ANSI codes)
       stripped_result = result.gsub(/\e\[[\d;]*m/, '') # Remove ANSI codes
       expect(stripped_result).to include('50%')
+    end
+
+    it 'renders 100% in red for first completion' do
+      result = renderer.render_process_column(1, 100, 15, true)
+
+      expect(result).to be_a(String)
+      stripped_result = result.gsub(/\e\[[\d;]*m/, '') # Remove ANSI codes
+      expect(stripped_result).to include('100%')
+      # Should contain red color codes for first completion
+      expect(result).to match(/\e\[31m/) # Red ANSI code
+    end
+
+    it 'renders 100% in green for subsequent completions' do
+      result = renderer.render_process_column(1, 100, 15, false)
+
+      expect(result).to be_a(String)
+      stripped_result = result.gsub(/\e\[[\d;]*m/, '') # Remove ANSI codes
+      expect(stripped_result).to include('100%')
+      # Should contain green color codes for subsequent completions
+      expect(result).to match(/\e\[32m/) # Green ANSI code
     end
   end
 

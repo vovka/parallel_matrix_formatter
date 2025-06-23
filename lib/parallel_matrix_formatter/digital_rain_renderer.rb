@@ -28,13 +28,13 @@ module ParallelMatrixFormatter
       end
     end
 
-    def render_process_column(process_id, progress_percent, column_width = nil)
+    def render_process_column(process_id, progress_percent, column_width = nil, is_first_completion = false)
       width = column_width || @config['display']['column_width']
       
       if @config['fade_effect']['enabled']
-        render_fade_effect_column(process_id, progress_percent, width)
+        render_fade_effect_column(process_id, progress_percent, width, is_first_completion)
       else
-        render_simple_column(process_id, progress_percent, width)
+        render_simple_column(process_id, progress_percent, width, is_first_completion)
       end
     end
 
@@ -116,7 +116,7 @@ module ParallelMatrixFormatter
 
     private
 
-    def render_simple_column(_process_id, progress_percent, width)
+    def render_simple_column(_process_id, progress_percent, width, is_first_completion = false)
       rain_chars = @config['katakana_alphabet_chars']
       rain_density = @config['display']['rain_density']
 
@@ -144,11 +144,14 @@ module ParallelMatrixFormatter
         result[pos] = char
       end
 
-      # Apply colors - rain in green, percentage in red
+      # Determine percentage color based on completion status
+      percent_color = determine_percent_color(progress_percent, is_first_completion)
+
+      # Apply colors - rain in green, percentage in determined color
       colored_result = ''
       result.chars.each_with_index do |char, i|
         colored_result += if i >= percent_start && i < percent_end && i - percent_start < percent_str.length
-                            colorize(char, @config['colors']['percent'])
+                            colorize(char, percent_color)
                           else
                             colorize(char, @config['colors']['rain'])
                           end
@@ -157,7 +160,7 @@ module ParallelMatrixFormatter
       colored_result
     end
 
-    def render_fade_effect_column(process_id, progress_percent, width)
+    def render_fade_effect_column(process_id, progress_percent, width, is_first_completion = false)
       rain_chars = @config['katakana_alphabet_chars']
       rain_density = @config['display']['rain_density']
       column_height = @config['fade_effect']['column_height']
@@ -196,6 +199,9 @@ module ParallelMatrixFormatter
         column_matrix[percent_row][pos] = char
       end
       
+      # Determine percentage color based on completion status
+      percent_color = determine_percent_color(progress_percent, is_first_completion)
+      
       # Convert matrix to colored string rows
       colored_rows = column_matrix.map.with_index do |row, row_index|
         row.map.with_index do |char, col_index|
@@ -205,7 +211,7 @@ module ParallelMatrixFormatter
                        col_index < percent_start + percent_str.length)
           
           if is_percent
-            colorize(char, @config['colors']['percent'])
+            colorize(char, percent_color)
           else
             # Calculate fade level based on distance from bright spot
             distance_from_bright = (row_index - bright_row).abs
@@ -223,6 +229,21 @@ module ParallelMatrixFormatter
       colored_rows[percent_row] || colored_rows.first || ''
     end
     
+    def determine_percent_color(progress_percent, is_first_completion)
+      if progress_percent >= 100
+        if is_first_completion
+          # First time showing 100% - use red
+          @config['colors']['percent']
+        else
+          # Subsequent times showing 100% - use background color (green)
+          @config['colors']['rain']
+        end
+      else
+        # Not at 100% yet - use regular percent color (red)
+        @config['colors']['percent']
+      end
+    end
+
     def calculate_fade_color(fade_level, max_levels)
       # fade_level: 1 = brightest, max_levels = dimmest
       bright_color = @config['fade_effect']['bright_color']

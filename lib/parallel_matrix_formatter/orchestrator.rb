@@ -123,7 +123,8 @@ module ParallelMatrixFormatter
         status: :running,
         start_time: Time.now,
         end_time: nil,
-        test_results: []
+        test_results: [],
+        first_completion_shown: false
       }
 
       update_base_display
@@ -213,10 +214,19 @@ module ParallelMatrixFormatter
 
       # Render process columns
       process_columns = @processes.values.map do |process|
+        # Check if this is the first time showing 100%
+        is_first_completion = (process[:progress_percent] >= 100 && !process[:first_completion_shown])
+        
+        # Mark as shown if we're displaying 100% for the first time
+        if is_first_completion
+          process[:first_completion_shown] = true
+        end
+        
         @renderer.render_process_column(
           process[:id],
           process[:progress_percent],
-          @config['display']['column_width']
+          @config['display']['column_width'],
+          is_first_completion
         )
       end
 
