@@ -62,7 +62,9 @@ module ParallelMatrixFormatter
     def handle_direct_message(message)
       # Public method to handle messages from same-process formatters
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Orchestrator: Received direct #{message['type']} message from process #{message['process_id']}"
+        message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
+        process_id = message.is_a?(Hash) ? (message[:process_id] || message['process_id']) : 'unknown'
+        $stderr.puts "Orchestrator: Received direct #{message_type} message from process #{process_id}"
       end
       handle_message(message)
     end
@@ -78,17 +80,30 @@ module ParallelMatrixFormatter
     end
 
     def handle_message(message)
-      case message['type']
+      # Normalize message to use string keys for consistent access
+      # (IPC messages come with string keys, direct messages come with symbol keys)
+      normalized_message = normalize_message_keys(message)
+      
+      case normalized_message['type']
       when 'register'
-        handle_process_registration(message)
+        handle_process_registration(normalized_message)
       when 'progress'
-        handle_progress_update(message)
+        handle_progress_update(normalized_message)
       when 'failure'
-        handle_failure(message)
+        handle_failure(normalized_message)
       when 'complete'
-        handle_process_completion(message)
+        handle_process_completion(normalized_message)
       when 'error'
-        handle_error(message)
+        handle_error(normalized_message)
+      end
+    end
+    
+    def normalize_message_keys(message)
+      # Convert symbol keys to string keys for consistent access
+      if message.is_a?(Hash)
+        message.transform_keys(&:to_s)
+      else
+        message
       end
     end
 

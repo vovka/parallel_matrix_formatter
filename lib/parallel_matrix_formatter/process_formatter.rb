@@ -184,7 +184,8 @@ module ParallelMatrixFormatter
       return unless @connected
 
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "ProcessFormatter: Sending #{message['type']} message from process #{@process_id}"
+        message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
+        $stderr.puts "ProcessFormatter: Sending #{message_type} message from process #{@process_id}"
       end
 
       begin
