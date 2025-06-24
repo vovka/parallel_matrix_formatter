@@ -67,7 +67,7 @@ module ParallelMatrixFormatter
       
       # Debug: Log the example count (only if debugging is enabled)
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Process #{Process.pid}: Found #{total_examples} examples, orchestrator: #{@is_orchestrator_process}"
+        debug_puts "Process #{Process.pid}: Found #{total_examples} examples, orchestrator: #{@is_orchestrator_process}"
       end
 
       if @is_orchestrator_process
@@ -75,12 +75,12 @@ module ParallelMatrixFormatter
         # Orchestrator process should also run tests to maximize parallelization
         # Always start process formatter for orchestrator to ensure it participates in testing
         if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-          $stderr.puts "Process #{Process.pid}: Orchestrator starting process formatter with #{total_examples} examples"
+          debug_puts "Process #{Process.pid}: Orchestrator starting process formatter with #{total_examples} examples"
         end
         start_process_formatter(total_examples, orchestrator: @orchestrator, orchestrator_process: true)
       else
         if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-          $stderr.puts "Process #{Process.pid}: Non-orchestrator starting process formatter with #{total_examples} examples"
+          debug_puts "Process #{Process.pid}: Non-orchestrator starting process formatter with #{total_examples} examples"
         end
         start_process_formatter(total_examples)
       end
@@ -149,7 +149,12 @@ module ParallelMatrixFormatter
       
       # Debug output before suppression
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Process #{Process.pid}: orchestrator=#{@is_orchestrator_process}"
+        # Use preserved stderr for debug if available, otherwise fallback to current
+        if SuppressionLayer.original_stderr
+          SuppressionLayer.original_stderr.puts "Process #{Process.pid}: orchestrator=#{@is_orchestrator_process}"
+        else
+          $stderr.puts "Process #{Process.pid}: orchestrator=#{@is_orchestrator_process}"
+        end
       end
       
       # If early suppression was applied and we're the orchestrator, we need to restore it
@@ -163,18 +168,23 @@ module ParallelMatrixFormatter
         end
       end
       
-      # Apply suppression layer based on configuration
-      suppression_level = determine_suppression_level
-      @suppression_layer = SuppressionLayer.new(suppression_level)
-      
-      # Suppress output for non-orchestrator processes, or if forced for all processes
-      should_suppress = !@is_orchestrator_process || ENV['PARALLEL_MATRIX_FORMATTER_FORCE_SUPPRESS']
+      # For role-based suppression: only suppress non-orchestrator processes at the formatter level
+      # ProcessFormatter will handle its own suppression regardless of process role
+      should_suppress = !@is_orchestrator_process
       
       if should_suppress
+        # Apply suppression for non-orchestrator processes
+        suppression_level = determine_suppression_level
+        @suppression_layer = SuppressionLayer.new(suppression_level)
+        
         if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-          $stderr.puts "Process #{Process.pid}: Applying suppression level #{suppression_level}"
+          debug_puts "Process #{Process.pid}: Applying suppression level #{suppression_level}"
         end
         @suppression_layer.suppress
+      else
+        # Orchestrator processes: preserve original IO but don't suppress at formatter level
+        # ProcessFormatter within orchestrator will handle its own suppression
+        SuppressionLayer.preserve_original_io
       end
     end
 
@@ -251,8 +261,13 @@ module ParallelMatrixFormatter
       if server_path
         # Only output if not suppressed
         unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
-          $stderr.puts 'Matrix Digital Rain formatter started (orchestrator mode)'
-          $stderr.puts "Server: #{server_path}"
+          if SuppressionLayer.original_stderr
+            SuppressionLayer.original_stderr.puts 'Matrix Digital Rain formatter started (orchestrator mode)'
+            SuppressionLayer.original_stderr.puts "Server: #{server_path}"
+          else
+            $stderr.puts 'Matrix Digital Rain formatter started (orchestrator mode)'
+            $stderr.puts "Server: #{server_path}"
+          end
         end
       else
         warn 'Failed to start orchestrator - falling back to standard output' unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
@@ -269,7 +284,18 @@ module ParallelMatrixFormatter
         @process_formatter = ProcessFormatter.new(@config, process_id, orchestrator)
         @process_formatter.start(total_examples)
       elsif ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Process #{Process.pid}: No examples found, skipping process formatter"
+        debug_puts "Process #{Process.pid}: No examples found, skipping process formatter"
+      end
+    end
+
+    def debug_puts(message)
+      # Use original stderr for debug output, bypassing suppression
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        if SuppressionLayer.original_stderr
+          SuppressionLayer.original_stderr.puts(message)
+        else
+          $stderr.puts(message)
+        end
       end
     end
   end

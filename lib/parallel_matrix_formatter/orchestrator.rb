@@ -3,6 +3,7 @@
 require_relative 'ipc'
 require_relative 'digital_rain_renderer'
 require_relative 'update_strategies'
+require_relative 'suppression_layer'
 
 module ParallelMatrixFormatter
   class Orchestrator
@@ -65,7 +66,7 @@ module ParallelMatrixFormatter
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
         message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
         process_id = message.is_a?(Hash) ? (message[:process_id] || message['process_id']) : 'unknown'
-        $stderr.puts "Orchestrator: Received direct #{message_type} message from process #{process_id}"
+        debug_puts "Orchestrator: Received direct #{message_type} message from process #{process_id}"
       end
       handle_message(message)
     end
@@ -112,8 +113,8 @@ module ParallelMatrixFormatter
       process_id = message['process_id']
 
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Orchestrator: Registering process #{process_id} with #{message['total_tests']} tests"
-        $stderr.puts "Orchestrator: Total registered processes: #{@processes.keys.length + 1}"
+        debug_puts "Orchestrator: Registering process #{process_id} with #{message['total_tests']} tests"
+        debug_puts "Orchestrator: Total registered processes: #{@processes.keys.length + 1}"
       end
 
       @processes[process_id] = {
@@ -147,7 +148,7 @@ module ParallelMatrixFormatter
         process[:test_results] << message['test_result']
 
         if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-          $stderr.puts "Orchestrator: Rendering live test result #{message['test_result']['status']} from process #{process_id}"
+          debug_puts "Orchestrator: Rendering live test result #{message['test_result']['status']} from process #{process_id}"
         end
 
         render_live_test_result(message['test_result'])
@@ -212,7 +213,7 @@ module ParallelMatrixFormatter
             @process_thresholds[process_id] = current_progress
 
             if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-              $stderr.puts "Orchestrator: Process #{process_id} crossed threshold: #{last_threshold_level}% -> #{current_threshold_level}%"
+              debug_puts "Orchestrator: Process #{process_id} crossed threshold: #{last_threshold_level}% -> #{current_threshold_level}%"
             end
             break
           end
@@ -238,7 +239,7 @@ module ParallelMatrixFormatter
       return if @processes.empty?
 
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Orchestrator: Updating display with #{@processes.size} processes: #{@processes.keys.join(', ')}"
+        debug_puts "Orchestrator: Updating display with #{@processes.size} processes: #{@processes.keys.join(', ')}"
       end
 
       # Finalize previous line if one was already rendered
@@ -266,15 +267,15 @@ module ParallelMatrixFormatter
       end
 
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "Orchestrator: Rendered #{process_columns.size} process columns"
+        debug_puts "Orchestrator: Rendered #{process_columns.size} process columns"
       end
 
       # Render base line (time + processes only)
       base_line = @renderer.render_matrix_line(time_column, process_columns, '')
 
       # Print base line and stay on same line for test dots
-      print "#{base_line} "
-      $stdout.flush
+      orchestrator_print "#{base_line} "
+      orchestrator_flush
       @current_line_rendered = true
     end
 
@@ -283,14 +284,14 @@ module ParallelMatrixFormatter
       return unless @current_line_rendered
 
       test_dot = @renderer.render_test_dots([test_result])
-      print test_dot
-      $stdout.flush
+      orchestrator_print test_dot
+      orchestrator_flush
     end
 
     def finalize_current_line
       # Move to next line when we're done with current line
       if @current_line_rendered
-        puts
+        orchestrator_puts
         @current_line_rendered = false
       end
     end
@@ -303,7 +304,7 @@ module ParallelMatrixFormatter
       # Print failure summary
       if @all_failures.any?
         failure_summary = @renderer.render_failure_summary(@all_failures)
-        puts failure_summary
+        orchestrator_puts failure_summary
       end
 
       # Calculate summary statistics
@@ -332,7 +333,46 @@ module ParallelMatrixFormatter
         process_durations,
         process_count
       )
-      puts final_summary
+      orchestrator_puts final_summary
+    end
+
+    private
+
+    def debug_puts(message)
+      # Use original stderr for debug output, bypassing suppression
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] && SuppressionLayer.original_stderr
+        SuppressionLayer.original_stderr.puts(message)
+      end
+    end
+
+    def orchestrator_puts(message = '')
+      # Use original stdout for orchestrator output, bypassing suppression
+      if SuppressionLayer.original_stdout
+        SuppressionLayer.original_stdout.puts(message)
+      else
+        # Fallback to regular puts if original stdout not available
+        puts(message)
+      end
+    end
+
+    def orchestrator_print(message)
+      # Use original stdout for orchestrator output, bypassing suppression
+      if SuppressionLayer.original_stdout
+        SuppressionLayer.original_stdout.print(message)
+      else
+        # Fallback to regular print if original stdout not available
+        print(message)
+      end
+    end
+
+    def orchestrator_flush
+      # Flush original stdout for orchestrator output
+      if SuppressionLayer.original_stdout
+        SuppressionLayer.original_stdout.flush
+      else
+        # Fallback to regular flush if original stdout not available
+        $stdout.flush
+      end
     end
   end
 end

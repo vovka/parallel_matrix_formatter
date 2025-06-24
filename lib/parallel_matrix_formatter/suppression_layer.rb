@@ -30,12 +30,50 @@ module ParallelMatrixFormatter
       runner: 6  # Complete suppression for test runners, ignores debug mode
     }.freeze
 
+    # Class-level storage for original IO streams (before any suppression)
+    @@original_stdout = nil
+    @@original_stderr = nil
+    @@original_verbose = nil
+    @@io_preserved = false
+
     def self.suppress(level = :all)
       new(level).suppress
     end
 
     def self.restore
       @instance&.restore
+    end
+
+    # Preserve original IO streams for orchestrator use
+    def self.preserve_original_io
+      return if @@io_preserved
+      
+      @@original_stdout = $stdout
+      @@original_stderr = $stderr
+      @@original_verbose = $VERBOSE
+      @@io_preserved = true
+    end
+
+    # Get original stdout for orchestrator use
+    def self.original_stdout
+      preserve_original_io unless @@io_preserved
+      @@original_stdout
+    end
+
+    # Get original stderr for orchestrator use  
+    def self.original_stderr
+      preserve_original_io unless @@io_preserved
+      @@original_stderr
+    end
+
+    # Apply role-based suppression - always suppress for runners
+    def self.suppress_runner_output
+      preserve_original_io unless @@io_preserved
+      
+      # For runners, always suppress output completely regardless of debug mode
+      $stdout = NullIO.new
+      $stderr = NullIO.new
+      $VERBOSE = nil
     end
 
     def initialize(level = :all)
@@ -48,6 +86,9 @@ module ParallelMatrixFormatter
 
     def suppress
       return if @suppressed || should_skip_suppression?
+
+      # Preserve original IO at class level if not already done
+      self.class.preserve_original_io
 
       @original_stdout = $stdout
       @original_stderr = $stderr

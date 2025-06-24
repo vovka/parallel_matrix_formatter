@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'ipc'
+require_relative 'suppression_layer'
 
 module ParallelMatrixFormatter
   class ProcessFormatter
@@ -13,20 +14,23 @@ module ParallelMatrixFormatter
       @last_progress_percent = 0
       @connected = false
       @orchestrator = orchestrator  # Direct reference when in same process
+      
+      # Apply runner-level suppression for this role
+      apply_runner_suppression
     end
 
     def start(total_examples)
       @total_examples = total_examples
       
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "ProcessFormatter: Starting with #{total_examples} examples for process #{@process_id}"
+        debug_puts "ProcessFormatter: Starting with #{total_examples} examples for process #{@process_id}"
       end
       
       # If we have a direct orchestrator reference, use it; otherwise connect via IPC
       if @orchestrator
         @connected = true
         if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-          $stderr.puts "ProcessFormatter: Using direct orchestrator communication for process #{@process_id}"
+          debug_puts "ProcessFormatter: Using direct orchestrator communication for process #{@process_id}"
         end
       else
         connect_to_orchestrator
@@ -35,7 +39,7 @@ module ParallelMatrixFormatter
       register_with_orchestrator if @connected
       
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "ProcessFormatter: Connected=#{@connected} for process #{@process_id}"
+        debug_puts "ProcessFormatter: Connected=#{@connected} for process #{@process_id}"
       end
     end
 
@@ -90,7 +94,7 @@ module ParallelMatrixFormatter
           # Server not ready yet, wait and retry
           attempts += 1
           if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-            $stderr.puts "Process #{Process.pid} formatter: Connection attempt #{attempts} failed, retrying..."
+            debug_puts "Process #{Process.pid} formatter: Connection attempt #{attempts} failed, retrying..."
           end
           sleep(0.1) if attempts < max_attempts
         end
@@ -152,7 +156,7 @@ module ParallelMatrixFormatter
       }
 
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        $stderr.puts "ProcessFormatter: Sending test result #{status} from process #{@process_id} (test #{@current_example}/#{@total_examples})"
+        debug_puts "ProcessFormatter: Sending test result #{status} from process #{@process_id} (test #{@current_example}/#{@total_examples})"
       end
 
       send_message(message)
@@ -192,7 +196,7 @@ module ParallelMatrixFormatter
 
       if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
         message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
-        $stderr.puts "ProcessFormatter: Sending #{message_type} message from process #{@process_id}"
+        debug_puts "ProcessFormatter: Sending #{message_type} message from process #{@process_id}"
       end
 
       begin
@@ -209,7 +213,7 @@ module ParallelMatrixFormatter
       rescue => e
         # Handle any other errors from direct communication
         if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-          $stderr.puts "ProcessFormatter: Error sending message: #{e.message}"
+          debug_puts "ProcessFormatter: Error sending message: #{e.message}"
         end
         @connected = false
       end
@@ -230,6 +234,18 @@ module ParallelMatrixFormatter
       progress_diff = current_percent - @last_progress_percent
 
       thresholds.any? { |threshold| progress_diff >= threshold }
+    end
+
+    def apply_runner_suppression
+      # Apply role-based suppression for runner - always suppress output
+      SuppressionLayer.suppress_runner_output
+    end
+
+    def debug_puts(message)
+      # Use original stderr for debug output, bypassing suppression
+      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] && SuppressionLayer.original_stderr
+        SuppressionLayer.original_stderr.puts(message)
+      end
     end
   end
 end
