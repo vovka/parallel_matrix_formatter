@@ -4,22 +4,18 @@ require 'yaml'
 require 'pathname'
 
 module ParallelMatrixFormatter
-  # ConfigLoader centralizes all configuration and environment variable handling.
-  # This class is responsible for loading YAML configuration files and processing
-  # environment variables, producing a frozen configuration object that contains
-  # all settings needed by the application components.
+  # ConfigLoader centralizes configuration loading for the parallel matrix formatter.
+  # This class loads YAML configuration files and processes environment variables,
+  # producing a frozen configuration object for use by application components.
+  #
+  # Refactored to remove debug-related environment variable handling as per 
+  # issue requirements to eliminate debug logic from the codebase.
   #
   # Environment Variables Handled:
   # ==============================
   # 
   # Configuration:
   # - PARALLEL_MATRIX_FORMATTER_CONFIG: Path to custom YAML config file
-  #
-  # Debug and Logging:
-  # - PARALLEL_MATRIX_FORMATTER_DEBUG: Enable detailed debug output (true/false)
-  # - PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS: Disable output suppression (true/false)
-  # - PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG: Respect debug settings in suppression layer (true/false)
-  # - PARALLEL_MATRIX_FORMATTER_SUPPRESS: Set suppression level (none/ruby_warnings/app_warnings/app_output/gem_output/all/runner)
   #
   # Process Management:
   # - PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR: Force this process to be orchestrator (true/false)
@@ -29,20 +25,6 @@ module ParallelMatrixFormatter
   # - PARALLEL_SPLIT_TEST_PROCESSES: Number of parallel test processes (parallel_split_test)
   # - PARALLEL_WORKERS: Number of parallel workers (parallel_tests gem)
   # - TEST_ENV_NUMBER: Test environment number for parallel execution
-  #
-  # Color/Terminal Support:
-  # - NO_COLOR: Disable colored terminal output (any value disables colors)
-  # - FORCE_COLOR: Force colored terminal output (true/false)
-  # - GITHUB_ACTIONS: GitHub Actions CI environment detection (true/false)
-  # - CI: Generic CI environment detection (true/false)
-  # - CONTINUOUS_INTEGRATION: Alternative CI detection (true/false)
-  # - TRAVIS: Travis CI detection (true/false)
-  # - CIRCLECI: CircleCI detection (true/false)
-  # - JENKINS_URL: Jenkins CI detection (any value)
-  # - BUILDKITE: Buildkite CI detection (true/false)
-  # - GITLAB_CI: GitLab CI detection (true/false)
-  # - APPVEYOR: AppVeyor CI detection (true/false)
-  # - TEAMCITY_VERSION: TeamCity CI detection (any value)
   #
   class ConfigLoader
     class ConfigError < StandardError; end
@@ -80,30 +62,15 @@ module ParallelMatrixFormatter
         'show_time_digits' => true,
         'rain_density' => 0.7
       },
-      # Environment-based runtime configuration
+      # Environment-based runtime configuration (simplified, debug variables removed)
       'environment' => {
-        'debug' => false,
-        'no_suppress' => false,
-        'respect_debug' => false,
-        'suppress_level' => nil,
         'force_orchestrator' => false,
         'server_path' => nil,
-        'is_parallel' => false,
-        'no_color' => false,
-        'force_color' => false,
-        'is_ci' => false,
-        'ci_environment' => nil
+        'is_parallel' => false
       }
     }.freeze
 
-    # CI environments that typically support colored output
-    CI_ENVIRONMENTS = %w[
-      CI CONTINUOUS_INTEGRATION
-      GITHUB_ACTIONS GITHUB_WORKFLOW
-      TRAVIS CIRCLECI JENKINS_URL
-      BUILDKITE GITLAB_CI
-      APPVEYOR TEAMCITY_VERSION
-    ].freeze
+    # CI environments list removed (no longer needed without color environment detection)
 
     # Class method to load and return a frozen configuration object
     # @return [Hash] Frozen configuration hash with all settings
@@ -239,22 +206,14 @@ module ParallelMatrixFormatter
       config
     end
 
-    # Process all environment variables and return environment configuration
+    # Process environment variables (simplified, debug and color vars removed)
     # @return [Hash] Environment configuration extracted from ENV variables
     def process_environment_variables
       {
         'environment' => {
-          'debug' => env_true?('PARALLEL_MATRIX_FORMATTER_DEBUG'),
-          'no_suppress' => env_true?('PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS'),
-          'respect_debug' => env_true?('PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG'),
-          'suppress_level' => ENV['PARALLEL_MATRIX_FORMATTER_SUPPRESS'],
           'force_orchestrator' => env_true?('PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR'),
           'server_path' => ENV['PARALLEL_MATRIX_FORMATTER_SERVER'],
-          'is_parallel' => detect_parallel_execution,
-          'no_color' => env_present?('NO_COLOR'),
-          'force_color' => env_true?('FORCE_COLOR'),
-          'is_ci' => detect_ci_environment,
-          'ci_environment' => detect_specific_ci_environment
+          'is_parallel' => detect_parallel_execution
         }
       }
     end
@@ -310,36 +269,6 @@ module ParallelMatrixFormatter
       ]
       
       parallel_env_vars.any? { |var| env_present?(var) }
-    end
-
-    # Detect if running in a CI environment
-    # @return [Boolean] True if CI environment is detected
-    def detect_ci_environment
-      CI_ENVIRONMENTS.any? { |env_var| env_present?(env_var) }
-    end
-
-    # Detect specific CI environment
-    # @return [String, nil] Name of the detected CI environment or nil
-    def detect_specific_ci_environment
-      ci_mapping = {
-        'GITHUB_ACTIONS' => 'github_actions',
-        'TRAVIS' => 'travis',
-        'CIRCLECI' => 'circleci', 
-        'JENKINS_URL' => 'jenkins',
-        'BUILDKITE' => 'buildkite',
-        'GITLAB_CI' => 'gitlab',
-        'APPVEYOR' => 'appveyor',
-        'TEAMCITY_VERSION' => 'teamcity'
-      }
-
-      ci_mapping.each do |env_var, ci_name|
-        return ci_name if env_present?(env_var)
-      end
-
-      # Check for generic CI indicators
-      return 'generic' if env_present?('CI') || env_present?('CONTINUOUS_INTEGRATION')
-
-      nil
     end
 
     # Deep merge two hashes, with second hash taking precedence

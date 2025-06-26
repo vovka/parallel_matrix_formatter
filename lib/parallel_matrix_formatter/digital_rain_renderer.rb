@@ -1,35 +1,27 @@
 # frozen_string_literal: true
 
-begin
-  require 'rainbow'
-rescue LoadError
-  # Rainbow gem not available - will use ANSI fallback
-end
+require_relative 'ansi_colorizer'
+require_relative 'failure_summary_renderer'
 
 module ParallelMatrixFormatter
   # DigitalRainRenderer creates the Matrix-style digital rain visual display
   # showing real-time test progress across multiple parallel processes.
-  # It handles color detection, terminal formatting, and the animated effect.
+  # 
+  # Refactored to only use ANSI color codes without environment detection.
+  # This simplifies the codebase by removing debug logic and complex color detection.
   #
   # Key responsibilities:
-  # - Detect terminal color support based on environment and configuration
   # - Render time display with optional custom digit symbols
   # - Create animated process columns showing test progress percentages
   # - Display individual test results as colored dots (pass/fail/pending)
   # - Generate final summary with test counts and timing information
-  # - Apply appropriate colors based on terminal capabilities
-  #
-  # Color Detection:
-  # - Uses centralized config object for environment-based color detection
-  # - Respects NO_COLOR and FORCE_COLOR environment conventions
-  # - Automatically detects CI environments that support colors
-  # - Falls back to TTY detection for interactive terminals
+  # - Apply ANSI colors consistently without environment checks
   #
   class DigitalRainRenderer
     def initialize(config)
       @config = config
-      @terminal_colors = detect_color_support
-      @color_method = determine_color_method
+      @failure_renderer = FailureSummaryRenderer.new(config)
+      # Simplified: always use ANSI colors, no environment detection
     end
 
     def render_time_column
@@ -45,9 +37,9 @@ module ParallelMatrixFormatter
             char # Keep colons as is
           end
         end.join
-        colorize(custom_time, @config['colors']['time'])
+        AnsiColorizer.colorize(custom_time, @config['colors']['time'])
       else
-        colorize(time_str, @config['colors']['time'])
+        AnsiColorizer.colorize(time_str, @config['colors']['time'])
       end
     end
 
@@ -69,13 +61,13 @@ module ParallelMatrixFormatter
         case status_str
         when 'passed'
           char = @config['pass_symbols_chars'].sample
-          colorize(char, @config['colors']['pass_dot'])
+          AnsiColorizer.colorize(char, @config['colors']['pass_dot'])
         when 'failed'
           char = @config['fail_symbols_chars'].sample
-          colorize(char, @config['colors']['fail_dot'])
+          AnsiColorizer.colorize(char, @config['colors']['fail_dot'])
         when 'pending'
           char = @config['pending_symbol']
-          colorize(char, @config['colors']['pending_dot'])
+          AnsiColorizer.colorize(char, @config['colors']['pending_dot'])
         else
           ' '
         end
@@ -88,56 +80,14 @@ module ParallelMatrixFormatter
       components.join(' ')
     end
 
+    # Delegate failure summary rendering to specialized renderer
     def render_failure_summary(failures)
-      return '' if failures.empty?
-
-      lines = []
-      lines << ''
-      lines << colorize('FAILED EXAMPLES', 'red')
-      lines << ''
-
-      failures.each_with_index do |failure, index|
-        lines << colorize("#{index + 1}. #{failure[:description]}", 'red')
-        lines << colorize("   Location: #{failure[:location]}", 'cyan') if failure[:location]
-        # Split message into lines and indent
-        failure[:message]&.split("\n")&.each do |line|
-          lines << "   #{line}"
-        end
-        lines << ''
-      end
-
-      lines.join("\n")
+      @failure_renderer.render_failure_summary(failures)
     end
 
+    # Delegate final summary rendering to specialized renderer  
     def render_final_summary(total_tests, failed_tests, pending_tests, total_duration, process_durations, process_count)
-      lines = []
-      lines << ''
-
-      # Results summary
-      summary_parts = []
-      summary_parts << "#{total_tests} examples"
-      summary_parts << colorize("#{failed_tests} failures", 'red') if failed_tests.positive?
-      summary_parts << "#{pending_tests} pending" if pending_tests.positive?
-
-      lines << summary_parts.join(', ')
-
-      # Duration summary
-      lines << ''
-      lines << "Finished in #{format_duration(total_duration)} (parallel)"
-
-      if process_durations && !process_durations.empty?
-        lines << 'Process durations:'
-        process_durations.each_with_index do |duration, index|
-          lines << "  Process #{index + 1}: #{format_duration(duration)}"
-        end
-        total_process_time = process_durations.sum
-        lines << "Total process time: #{format_duration(total_process_time)}"
-      end
-
-      lines << "Processes: #{process_count}" if process_count > 1
-      lines << ''
-
-      lines.join("\n")
+      @failure_renderer.render_final_summary(total_tests, failed_tests, pending_tests, total_duration, process_durations, process_count)
     end
 
     private
@@ -177,9 +127,9 @@ module ParallelMatrixFormatter
       colored_result = ''
       result.chars.each_with_index do |char, i|
         colored_result += if i >= percent_start && i < percent_end && i - percent_start < percent_str.length
-                            colorize(char, percent_color)
+                            AnsiColorizer.colorize(char, percent_color)
                           else
-                            colorize(char, @config['colors']['rain'])
+                            AnsiColorizer.colorize(char, @config['colors']['rain'])
                           end
       end
 
@@ -237,7 +187,7 @@ module ParallelMatrixFormatter
                        col_index < percent_start + percent_str.length
 
           if is_percent
-            colorize(char, percent_color)
+            AnsiColorizer.colorize(char, percent_color)
           else
             # Calculate fade level based on distance from bright spot
             distance_from_bright = (row_index - bright_row).abs
@@ -245,7 +195,7 @@ module ParallelMatrixFormatter
 
             # Apply fade effect coloring
             color = calculate_fade_color(fade_level, fade_levels)
-            colorize(char, color)
+            AnsiColorizer.colorize(char, color)
           end
         end.join
       end
@@ -290,125 +240,6 @@ module ParallelMatrixFormatter
         else
           dim_color # Dimmer levels
         end
-      end
-    end
-
-    def detect_color_support
-      # Check for explicit color disabling
-      return false if @config['environment']['no_color']
-
-      # Check for explicit color forcing
-      return true if @config['environment']['force_color']
-
-      # Check configuration method
-      color_method = @config.dig('colors', 'method')&.to_s&.downcase
-      return false if color_method == 'none'
-
-      # Check for CI environments that support colors
-      return true if @config['environment']['is_ci']
-
-      # Check if stdout is a TTY (traditional terminal detection)
-      $stdout.tty?
-    end
-
-    def determine_color_method
-      color_method = @config.dig('colors', 'method')&.to_s&.downcase || 'auto'
-
-      case color_method
-      when 'rainbow'
-        :rainbow
-      when 'ansi'
-        :ansi
-      when 'none'
-        :none
-      else # 'auto'
-        :auto
-      end
-    end
-
-    def colorize(text, color)
-      return text unless @terminal_colors
-
-      case @color_method
-      when :ansi
-        colorize_with_ansi(text, color)
-      when :rainbow
-        colorize_with_rainbow(text, color)
-      when :auto
-        # Try rainbow first, fallback to ANSI
-        begin
-          colorize_with_rainbow(text, color)
-        rescue StandardError
-          colorize_with_ansi(text, color)
-        end
-      else
-        text
-      end
-    end
-
-    def colorize_with_rainbow(text, color)
-      # Check if Rainbow is available
-      return colorize_with_ansi(text, color) unless defined?(Rainbow)
-
-      case color.to_s.downcase
-      when 'red'
-        Rainbow(text).red
-      when 'green'
-        Rainbow(text).green
-      when 'bright_green'
-        Rainbow(text).green.bright
-      when 'blue'
-        Rainbow(text).blue
-      when 'yellow'
-        Rainbow(text).yellow
-      when 'cyan'
-        Rainbow(text).cyan
-      when 'magenta'
-        Rainbow(text).magenta
-      when 'white'
-        Rainbow(text).white
-      when 'black'
-        Rainbow(text).black
-      else
-        text
-      end
-    end
-
-    def colorize_with_ansi(text, color)
-      return text unless @terminal_colors
-
-      # ANSI color codes
-      color_codes = {
-        'red' => "\e[31m",
-        'green' => "\e[32m",
-        'bright_green' => "\e[1;32m",
-        'blue' => "\e[34m",
-        'yellow' => "\e[33m",
-        'cyan' => "\e[36m",
-        'magenta' => "\e[35m",
-        'white' => "\e[37m",
-        'black' => "\e[30m"
-      }
-
-      reset_code = "\e[0m"
-      color_code = color_codes[color.to_s.downcase]
-
-      if color_code
-        "#{color_code}#{text}#{reset_code}"
-      else
-        text
-      end
-    end
-
-    def format_duration(seconds)
-      if seconds < 1
-        "#{(seconds * 1000).round(2)} ms"
-      elsif seconds < 60
-        "#{seconds.round(2)} seconds"
-      else
-        minutes = (seconds / 60).to_i
-        remaining_seconds = (seconds % 60).round(2)
-        "#{minutes}m #{remaining_seconds}s"
       end
     end
   end

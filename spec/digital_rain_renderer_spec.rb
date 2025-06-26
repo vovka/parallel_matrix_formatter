@@ -110,72 +110,37 @@ RSpec.describe ParallelMatrixFormatter::DigitalRainRenderer do
     end
   end
 
-  describe 'color support detection' do
-    it 'detects GitHub Actions CI environment' do
-      # Create config with colors enabled
-      ci_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
+  describe 'simplified color behavior' do
+    it 'always outputs ANSI color codes (NO_COLOR environment variable removed)' do
+      # Simplified: DigitalRainRenderer now always outputs ANSI codes
+      # Environment variable checking has been removed as per refactoring requirements
       
-      # Mock GitHub Actions environment
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return('true')
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return(nil)
-      
-      renderer = described_class.new(ci_config)
+      renderer = described_class.new(config)
       result = renderer.render_process_column(1, 50, 15)
       
-      # Should produce colored output in GitHub Actions
+      # Should always produce colored output (ANSI codes always applied)
       expect(result).to match(/\e\[[\d;]*m/) # Contains ANSI codes
     end
 
-    it 'respects NO_COLOR environment variable' do
-      # Create config with colors enabled  
-      no_color_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
+    it 'always outputs ANSI color codes (FORCE_COLOR environment variable removed)' do
+      # Simplified: DigitalRainRenderer now always outputs ANSI codes
+      # Environment variable checking has been removed as per refactoring requirements
       
-      # Mock NO_COLOR environment
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return('1')
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return(nil)
-      
-      renderer = described_class.new(no_color_config)
+      renderer = described_class.new(config)
       result = renderer.render_process_column(1, 50, 15)
       
-      # Should not produce colored output when NO_COLOR is set
-      expect(result).not_to match(/\e\[[\d;]*m/) # No ANSI codes
-    end
-
-    it 'forces colors with FORCE_COLOR environment variable' do
-      # Create config with colors enabled
-      force_color_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
-      
-      # Mock FORCE_COLOR environment and non-TTY stdout
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return('1')
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return(nil)
-      allow($stdout).to receive(:tty?).and_return(false)
-      
-      renderer = described_class.new(force_color_config)
-      result = renderer.render_process_column(1, 50, 15)
-      
-      # Should produce colored output even when stdout is not a TTY
+      # Should always produce colored output (ANSI codes always applied)
       expect(result).to match(/\e\[[\d;]*m/) # Contains ANSI codes
     end
   end
 
-  describe 'ANSI color fallback' do
-    it 'uses direct ANSI codes when configured' do
-      # Create config with ANSI method specifically
-      ansi_config = config.merge('colors' => config['colors'].merge('method' => 'ansi'))
+  describe 'ANSI color output' do
+    it 'always uses ANSI codes (method configuration removed)' do
+      # Simplified: DigitalRainRenderer now always uses ANSI codes
+      # Color method detection has been removed as per refactoring requirements
       
-      # Mock environment to enable colors
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return('1')
-      
-      ansi_renderer = described_class.new(ansi_config)
-      result = ansi_renderer.render_process_column(1, 100, 15, true)
+      renderer = described_class.new(config)
+      result = renderer.render_process_column(1, 100, 15, true)
       
       # Should contain red ANSI code for 100% first completion
       expect(result).to match(/\e\[31m/) # Red ANSI code

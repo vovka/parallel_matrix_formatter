@@ -40,39 +40,48 @@ RSpec.describe ParallelMatrixFormatter::ConfigLoader do
     end
 
     context 'with environment variables' do
-      it 'loads environment configuration' do
+      it 'loads simplified environment configuration (debug/color vars removed)' do
         config = described_class.load
 
         expect(config['environment']).to be_a(Hash)
-        expect(config['environment']['debug']).to be_in([true, false])
-        expect(config['environment']['no_suppress']).to be_in([true, false])
-        expect(config['environment']['is_parallel']).to be_in([true, false])
-        expect(config['environment']['is_ci']).to be_in([true, false])
+        expect(config['environment']['force_orchestrator']).to be(true).or be(false)
+        expect(config['environment']['is_parallel']).to be(true).or be(false)
+        # Debug and color environment variables have been removed
+        expect(config['environment']['debug']).to be_nil
+        expect(config['environment']['no_color']).to be_nil
+        expect(config['environment']['force_color']).to be_nil
+        expect(config['environment']['is_ci']).to be_nil
       end
 
-      it 'processes debug environment variable' do
-        old_env = ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] = 'true'
+      it 'processes orchestrator environment variable' do
+        old_env = ENV['PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR']
+        ENV['PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR'] = 'true'
         
         config = described_class.load
-        expect(config['environment']['debug']).to be true
+        expect(config['environment']['force_orchestrator']).to be true
         
       ensure
-        ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] = old_env
+        ENV['PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR'] = old_env
       end
 
-      it 'processes color environment variables' do
+      it 'no longer processes debug or color environment variables (removed)' do
+        # Verify that debug and color environment variables are no longer processed
+        old_debug = ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
         old_no_color = ENV['NO_COLOR']
         old_force_color = ENV['FORCE_COLOR']
         
+        ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] = 'true'
         ENV['NO_COLOR'] = '1'
-        ENV['FORCE_COLOR'] = nil
+        ENV['FORCE_COLOR'] = 'true'
         
         config = described_class.load
-        expect(config['environment']['no_color']).to be true
-        expect(config['environment']['force_color']).to be false
+        # These should all be nil since we removed debug/color environment processing
+        expect(config['environment']['debug']).to be_nil
+        expect(config['environment']['no_color']).to be_nil
+        expect(config['environment']['force_color']).to be_nil
         
       ensure
+        ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] = old_debug
         ENV['NO_COLOR'] = old_no_color
         ENV['FORCE_COLOR'] = old_force_color
       end
