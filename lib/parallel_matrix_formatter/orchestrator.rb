@@ -80,11 +80,6 @@ module ParallelMatrixFormatter
 
     def handle_direct_message(message)
       # Public method to handle messages from same-process formatters
-      if @config['environment']['debug']
-        message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
-        process_id = message.is_a?(Hash) ? (message[:process_id] || message['process_id']) : 'unknown'
-        debug_puts "Orchestrator: Received direct #{message_type} message from process #{process_id}"
-      end
       handle_message(message)
     end
 
@@ -129,11 +124,6 @@ module ParallelMatrixFormatter
     def handle_process_registration(message)
       process_id = message['process_id']
 
-      if @config['environment']['debug']
-        debug_puts "Orchestrator: Registering process #{process_id} with #{message['total_tests']} tests"
-        debug_puts "Orchestrator: Total registered processes: #{@processes.keys.length + 1}"
-      end
-
       @processes[process_id] = {
         id: process_id,
         total_tests: message['total_tests'],
@@ -163,10 +153,6 @@ module ParallelMatrixFormatter
       # If test result is provided, render it immediately
       if message['test_result']
         process[:test_results] << message['test_result']
-
-        if @config['environment']['debug']
-          debug_puts "Orchestrator: Rendering live test result #{message['test_result']['status']} from process #{process_id}"
-        end
 
         render_live_test_result(message['test_result'])
       end
@@ -228,10 +214,6 @@ module ParallelMatrixFormatter
           if current_threshold_level > last_threshold_level
             threshold_crossed = true
             @process_thresholds[process_id] = current_progress
-
-            if @config['environment']['debug']
-              debug_puts "Orchestrator: Process #{process_id} crossed threshold: #{last_threshold_level}% -> #{current_threshold_level}%"
-            end
             break
           end
         end
@@ -255,10 +237,6 @@ module ParallelMatrixFormatter
     def update_base_display
       return if @processes.empty?
 
-      if @config['environment']['debug']
-        debug_puts "Orchestrator: Updating display with #{@processes.size} processes: #{@processes.keys.join(', ')}"
-      end
-
       # Finalize previous line if one was already rendered
       finalize_current_line
 
@@ -281,10 +259,6 @@ module ParallelMatrixFormatter
           @config['display']['column_width'],
           is_first_completion
         )
-      end
-
-      if @config['environment']['debug']
-        debug_puts "Orchestrator: Rendered #{process_columns.size} process columns"
       end
 
       # Render base line (time + processes only)
@@ -354,13 +328,6 @@ module ParallelMatrixFormatter
     end
 
     private
-
-    def debug_puts(message)
-      # Use original stderr for debug output, bypassing suppression
-      if @config['environment']['debug'] && SuppressionLayer.original_stderr
-        SuppressionLayer.original_stderr.puts(message)
-      end
-    end
 
     def orchestrator_puts(message = '')
       # Use original stdout for orchestrator output, bypassing suppression
