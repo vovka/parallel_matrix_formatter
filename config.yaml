@@ -1,0 +1,33 @@
+# Configuration file for Parallel Matrix Formatter
+# This file contains default settings that can be overridden by environment variables
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Parallel processing configuration
+parallel:
+  workers: 4
+  chunk_size: 1000
+
+# Matrix processing configuration
+matrix:
+  max_size: 10000
+  default_precision: 2
+
+# Output configuration
+output:
+  format: "json"
+  compression: false
+
+# Cache configuration
+cache:
+  enabled: true
+  ttl: 3600
+  backend: "memory"
+
+# Debug configuration
+debug:
+  enabled: false
+  profiling: false
