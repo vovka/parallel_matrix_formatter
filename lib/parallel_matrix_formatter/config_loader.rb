@@ -4,6 +4,7 @@ require 'yaml'
 require 'pathname'
 require 'tmpdir'
 require 'socket'
+require_relative 'ipc_config_processor'
 
 module ParallelMatrixFormatter
   # ConfigLoader centralizes configuration loading for the parallel matrix formatter.
@@ -226,7 +227,7 @@ module ParallelMatrixFormatter
                                           end
 
       # Process IPC configuration - generate paths and validate settings
-      process_ipc_config(config)
+      IpcConfigProcessor.process_ipc_config(config)
 
       config
     end
@@ -277,70 +278,6 @@ module ParallelMatrixFormatter
     # @return [Boolean] True if variable is set to any value
     def env_present?(var_name)
       !ENV[var_name].nil?
-    end
-
-    # Process IPC configuration by generating default paths and validating settings
-    # This method centralizes all IPC path generation and configuration processing
-    # to eliminate scattered path generation throughout the codebase
-    # @param config [Hash] Configuration to process
-    def process_ipc_config(config)
-      ipc_config = config['ipc']
-      
-      # Set default temp directory if not specified
-      ipc_config['temp_dir'] ||= Dir.tmpdir
-      
-      # Generate default server path if not specified
-      # Use environment server path if provided, otherwise generate default
-      if config['environment']['server_path']
-        ipc_config['server_path'] = config['environment']['server_path']
-      elsif ipc_config['server_path'].nil?
-        # Generate appropriate default path based on mode preference
-        if ipc_config['prefer_unix_socket'] && unix_socket_supported?
-          ipc_config['server_path'] = File.join(ipc_config['temp_dir'], "parallel_matrix_formatter_#{Process.pid}.sock")
-        else
-          ipc_config['server_path'] = File.join(ipc_config['temp_dir'], "parallel_matrix_formatter_#{Process.pid}")
-        end
-      end
-      
-      # Generate orchestrator lock file path if not specified
-      ipc_config['orchestrator_lock_file'] ||= File.join(ipc_config['temp_dir'], 'parallel_matrix_formatter_orchestrator.lock')
-      
-      # Generate server path file for fallback discovery if not specified
-      ipc_config['server_path_file'] ||= File.join(ipc_config['temp_dir'], 'parallel_matrix_formatter_server.path')
-      
-      # Validate and process mode setting
-      case ipc_config['mode']
-      when 'auto'
-        # Auto mode: prefer unix_socket if supported and preferred, otherwise file_based
-        ipc_config['resolved_mode'] = if ipc_config['prefer_unix_socket'] && unix_socket_supported?
-                                        'unix_socket'
-                                      else
-                                        'file_based'
-                                      end
-      when 'unix_socket'
-        unless unix_socket_supported?
-          # Fall back to file_based if unix_socket not supported
-          ipc_config['resolved_mode'] = 'file_based'
-        else
-          ipc_config['resolved_mode'] = 'unix_socket'
-        end
-      when 'file_based'
-        ipc_config['resolved_mode'] = 'file_based'
-      else
-        raise ConfigError, "Invalid IPC mode '#{ipc_config['mode']}'. Must be 'auto', 'unix_socket', or 'file_based'"
-      end
-      
-      # Ensure paths are absolute
-      %w[server_path temp_dir orchestrator_lock_file server_path_file].each do |path_key|
-        ipc_config[path_key] = File.expand_path(ipc_config[path_key]) if ipc_config[path_key]
-      end
-    end
-
-    # Check if Unix sockets are supported on this platform
-    # @return [Boolean] True if Unix sockets are supported
-    def unix_socket_supported?
-      # Check if Unix sockets are supported (not on Windows in general)
-      !Gem.win_platform? && defined?(UNIXSocket)
     end
 
     # Check if environment variable is set to a truthy value

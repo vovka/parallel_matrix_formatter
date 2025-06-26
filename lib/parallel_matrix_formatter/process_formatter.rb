@@ -16,9 +16,16 @@ module ParallelMatrixFormatter
   # - Send completion notification when all tests finish
   # - Apply runner-level output suppression for clean display
   #
-  # The formatter uses a centralized config object for all settings,
-  # eliminating direct ENV access except during connection establishment
-  # where it may fall back to reading the server path from filesystem.
+  # The formatter uses a centralized config object for all IPC settings,
+  # eliminating direct ENV access and file-based server discovery except
+  # for explicitly configured fallback scenarios.
+  #
+  # IPC Configuration Usage:
+  # - Uses config['ipc']['retry_attempts'] and config['ipc']['retry_delay'] for connection retry logic
+  # - Uses config['ipc']['connection_timeout'] for connection timeout limits
+  # - Uses config['ipc']['prefer_unix_socket'] to determine client type
+  # - Falls back to config['ipc']['server_path_file'] only when explicitly configured
+  # - All connection parameters are derived from centralized configuration
   #
   class ProcessFormatter
     def initialize(config, process_id = nil, orchestrator = nil)
@@ -74,6 +81,17 @@ module ParallelMatrixFormatter
 
     private
 
+    # Connect to the orchestrator using centralized IPC configuration
+    #
+    # This method establishes IPC connection using configuration-provided settings:
+    # - Connection timeout, retry attempts, and delays are config-driven
+    # - Server path discovery follows config-specified precedence:
+    #   1. config['environment']['server_path'] (from ENV or explicit config)
+    #   2. config['ipc']['server_path_file'] (fallback file, if configured)
+    #   3. config['ipc']['server_path'] (default generated path)
+    # - Client type (Unix socket vs file-based) determined by config preferences
+    #
+    # All connection parameters are centralized to eliminate scattered IPC logic
     def connect_to_orchestrator
       # Connect to orchestrator using centralized IPC configuration
       ipc_config = @config['ipc']
