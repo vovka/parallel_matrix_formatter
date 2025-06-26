@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'ansi_colorizer'
+require_relative 'failure_summary_renderer'
 
 module ParallelMatrixFormatter
   # DigitalRainRenderer creates the Matrix-style digital rain visual display
@@ -19,6 +20,7 @@ module ParallelMatrixFormatter
   class DigitalRainRenderer
     def initialize(config)
       @config = config
+      @failure_renderer = FailureSummaryRenderer.new(config)
       # Simplified: always use ANSI colors, no environment detection
     end
 
@@ -78,56 +80,14 @@ module ParallelMatrixFormatter
       components.join(' ')
     end
 
+    # Delegate failure summary rendering to specialized renderer
     def render_failure_summary(failures)
-      return '' if failures.empty?
-
-      lines = []
-      lines << ''
-      lines << AnsiColorizer.colorize('FAILED EXAMPLES', 'red')
-      lines << ''
-
-      failures.each_with_index do |failure, index|
-        lines << AnsiColorizer.colorize("#{index + 1}. #{failure[:description]}", 'red')
-        lines << AnsiColorizer.colorize("   Location: #{failure[:location]}", 'cyan') if failure[:location]
-        # Split message into lines and indent
-        failure[:message]&.split("\n")&.each do |line|
-          lines << "   #{line}"
-        end
-        lines << ''
-      end
-
-      lines.join("\n")
+      @failure_renderer.render_failure_summary(failures)
     end
 
+    # Delegate final summary rendering to specialized renderer  
     def render_final_summary(total_tests, failed_tests, pending_tests, total_duration, process_durations, process_count)
-      lines = []
-      lines << ''
-
-      # Results summary
-      summary_parts = []
-      summary_parts << "#{total_tests} examples"
-      summary_parts << AnsiColorizer.colorize("#{failed_tests} failures", 'red') if failed_tests.positive?
-      summary_parts << "#{pending_tests} pending" if pending_tests.positive?
-
-      lines << summary_parts.join(', ')
-
-      # Duration summary
-      lines << ''
-      lines << "Finished in #{format_duration(total_duration)} (parallel)"
-
-      if process_durations && !process_durations.empty?
-        lines << 'Process durations:'
-        process_durations.each_with_index do |duration, index|
-          lines << "  Process #{index + 1}: #{format_duration(duration)}"
-        end
-        total_process_time = process_durations.sum
-        lines << "Total process time: #{format_duration(total_process_time)}"
-      end
-
-      lines << "Processes: #{process_count}" if process_count > 1
-      lines << ''
-
-      lines.join("\n")
+      @failure_renderer.render_final_summary(total_tests, failed_tests, pending_tests, total_duration, process_durations, process_count)
     end
 
     private
@@ -280,21 +240,6 @@ module ParallelMatrixFormatter
         else
           dim_color # Dimmer levels
         end
-      end
-    end
-
-    # Format duration in a human-readable format
-    # @param seconds [Float] Duration in seconds
-    # @return [String] Formatted duration string
-    def format_duration(seconds)
-      if seconds < 1
-        "#{(seconds * 1000).round(2)} ms"
-      elsif seconds < 60
-        "#{seconds.round(2)} seconds"
-      else
-        minutes = (seconds / 60).to_i
-        remaining_seconds = (seconds % 60).round(2)
-        "#{minutes}m #{remaining_seconds}s"
       end
     end
   end

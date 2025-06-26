@@ -38,25 +38,14 @@ module ParallelMatrixFormatter
     def start(total_examples)
       @total_examples = total_examples
       
-      if @config['environment']['debug']
-        debug_puts "ProcessFormatter: Starting with #{total_examples} examples for process #{@process_id}"
-      end
-      
       # If we have a direct orchestrator reference, use it; otherwise connect via IPC
       if @orchestrator
         @connected = true
-        if @config['environment']['debug']
-          debug_puts "ProcessFormatter: Using direct orchestrator communication for process #{@process_id}"
-        end
       else
         connect_to_orchestrator
       end
       
       register_with_orchestrator if @connected
-      
-      if @config['environment']['debug']
-        debug_puts "ProcessFormatter: Connected=#{@connected} for process #{@process_id}"
-      end
     end
 
     def example_started(_notification)
@@ -109,9 +98,6 @@ module ParallelMatrixFormatter
         rescue IPC::IPCError
           # Server not ready yet, wait and retry
           attempts += 1
-          if @config['environment']['debug']
-            debug_puts "Process #{Process.pid} formatter: Connection attempt #{attempts} failed, retrying..."
-          end
           sleep(0.1) if attempts < max_attempts
         end
       end
@@ -171,10 +157,6 @@ module ParallelMatrixFormatter
         timestamp: Time.now.to_f
       }
 
-      if @config['environment']['debug']
-        debug_puts "ProcessFormatter: Sending test result #{status} from process #{@process_id} (test #{@current_example}/#{@total_examples})"
-      end
-
       send_message(message)
     end
 
@@ -210,11 +192,6 @@ module ParallelMatrixFormatter
     def send_message(message)
       return unless @connected
 
-      if @config['environment']['debug']
-        message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
-        debug_puts "ProcessFormatter: Sending #{message_type} message from process #{@process_id}"
-      end
-
       begin
         if @orchestrator
           # Direct communication - call orchestrator's public handle method
@@ -228,9 +205,6 @@ module ParallelMatrixFormatter
         @connected = false
       rescue => e
         # Handle any other errors from direct communication
-        if @config['environment']['debug']
-          debug_puts "ProcessFormatter: Error sending message: #{e.message}"
-        end
         @connected = false
       end
     end
@@ -255,13 +229,6 @@ module ParallelMatrixFormatter
     def apply_runner_suppression
       # Apply role-based suppression for runner - always suppress output
       SuppressionLayer.suppress_runner_output
-    end
-
-    def debug_puts(message)
-      # Use original stderr for debug output, bypassing suppression
-      if @config['environment']['debug'] && SuppressionLayer.original_stderr
-        SuppressionLayer.original_stderr.puts(message)
-      end
     end
   end
 end
