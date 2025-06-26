@@ -4,6 +4,22 @@ require_relative 'ipc'
 require_relative 'suppression_layer'
 
 module ParallelMatrixFormatter
+  # ProcessFormatter handles test progress reporting from individual test processes
+  # to the orchestrator. It tracks test execution progress and sends updates via
+  # either direct method calls (same process) or IPC (separate processes).
+  #
+  # Key responsibilities:
+  # - Connect to orchestrator via IPC or direct reference
+  # - Register process with orchestrator including total test count
+  # - Send progress updates as tests are executed
+  # - Report individual test results (pass/fail/pending) for live display
+  # - Send completion notification when all tests finish
+  # - Apply runner-level output suppression for clean display
+  #
+  # The formatter uses a centralized config object for all settings,
+  # eliminating direct ENV access except during connection establishment
+  # where it may fall back to reading the server path from filesystem.
+  #
   class ProcessFormatter
     def initialize(config, process_id = nil, orchestrator = nil)
       @config = config
@@ -22,14 +38,14 @@ module ParallelMatrixFormatter
     def start(total_examples)
       @total_examples = total_examples
       
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         debug_puts "ProcessFormatter: Starting with #{total_examples} examples for process #{@process_id}"
       end
       
       # If we have a direct orchestrator reference, use it; otherwise connect via IPC
       if @orchestrator
         @connected = true
-        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        if @config['environment']['debug']
           debug_puts "ProcessFormatter: Using direct orchestrator communication for process #{@process_id}"
         end
       else
@@ -38,7 +54,7 @@ module ParallelMatrixFormatter
       
       register_with_orchestrator if @connected
       
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         debug_puts "ProcessFormatter: Connected=#{@connected} for process #{@process_id}"
       end
     end
@@ -75,7 +91,7 @@ module ParallelMatrixFormatter
       attempts = 0
       
       while attempts < max_attempts
-        server_path = ENV.fetch('PARALLEL_MATRIX_FORMATTER_SERVER', nil)
+        server_path = @config['environment']['server_path']
         
         # If not in environment, try reading from file
         if !server_path
@@ -93,7 +109,7 @@ module ParallelMatrixFormatter
         rescue IPC::IPCError
           # Server not ready yet, wait and retry
           attempts += 1
-          if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          if @config['environment']['debug']
             debug_puts "Process #{Process.pid} formatter: Connection attempt #{attempts} failed, retrying..."
           end
           sleep(0.1) if attempts < max_attempts
@@ -155,7 +171,7 @@ module ParallelMatrixFormatter
         timestamp: Time.now.to_f
       }
 
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         debug_puts "ProcessFormatter: Sending test result #{status} from process #{@process_id} (test #{@current_example}/#{@total_examples})"
       end
 
@@ -194,7 +210,7 @@ module ParallelMatrixFormatter
     def send_message(message)
       return unless @connected
 
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
         debug_puts "ProcessFormatter: Sending #{message_type} message from process #{@process_id}"
       end
@@ -212,7 +228,7 @@ module ParallelMatrixFormatter
         @connected = false
       rescue => e
         # Handle any other errors from direct communication
-        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        if @config['environment']['debug']
           debug_puts "ProcessFormatter: Error sending message: #{e.message}"
         end
         @connected = false
@@ -243,7 +259,7 @@ module ParallelMatrixFormatter
 
     def debug_puts(message)
       # Use original stderr for debug output, bypassing suppression
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] && SuppressionLayer.original_stderr
+      if @config['environment']['debug'] && SuppressionLayer.original_stderr
         SuppressionLayer.original_stderr.puts(message)
       end
     end

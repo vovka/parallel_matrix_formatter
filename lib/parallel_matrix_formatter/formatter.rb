@@ -7,14 +7,36 @@ require_relative 'orchestrator'
 require_relative 'process_formatter'
 
 module ParallelMatrixFormatter
+  # Formatter is the main RSpec formatter class that coordinates the matrix digital rain display
+  # during parallel test execution. It acts as either an orchestrator (managing the display)
+  # or a worker process (reporting test progress to the orchestrator).
+  #
+  # Key responsibilities:
+  # - Detect if running in parallel test environment
+  # - Determine process role (orchestrator vs worker)
+  # - Apply output suppression to prevent interference between processes
+  # - Start and manage the orchestrator for display coordination
+  # - Forward test events to process formatter for progress reporting
+  #
+  # Environment Detection:
+  # - Uses ENV variables at class load time to detect parallel execution
+  # - Applies early suppression to prevent output leakage during initialization
+  # - Later uses centralized config object for all runtime decisions
+  #
   class Formatter < RSpec::Core::Formatters::BaseFormatter
     # Apply early suppression when the class is loaded if we detect parallel testing
+    # This is necessary because output can leak during class loading in parallel environments
+    # Note: This is one of the few places where ENV is accessed directly, as it occurs
+    # before the config system is available
     @@early_suppression_applied = false
     
+    # Detect parallel testing environment and apply early suppression if needed
+    # @return [void]
     def self.apply_early_suppression_if_needed
       return if @@early_suppression_applied
       
       # Only apply early suppression if we detect we're in a parallel testing environment
+      # We need to check ENV directly here since config isn't loaded yet
       if ENV['PARALLEL_SPLIT_TEST_PROCESSES'] || ENV['PARALLEL_WORKERS'] || ENV['TEST_ENV_NUMBER']
         begin
           # Apply complete suppression early to prevent output leakage during class loading
@@ -27,6 +49,7 @@ module ParallelMatrixFormatter
         rescue => e
           # If early suppression fails, don't break the test run
           # Just continue without early suppression
+          # We check ENV directly here since config isn't available yet
           warn "Warning: Early suppression failed: #{e.message}" if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
         end
       end
@@ -35,7 +58,8 @@ module ParallelMatrixFormatter
     # Apply early suppression as soon as the class is loaded
     apply_early_suppression_if_needed
     
-    # Class method to reset state (useful for multiple test runs)
+    # Reset early suppression state (useful for testing)
+    # @return [void]
     def self.reset_early_suppression
       if @@early_suppression_applied
         @@early_suppression_layer&.restore
@@ -66,7 +90,7 @@ module ParallelMatrixFormatter
       total_examples = start_notification.count
       
       # Debug: Log the example count (only if debugging is enabled)
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         debug_puts "Process #{Process.pid}: Found #{total_examples} examples, orchestrator: #{@is_orchestrator_process}"
       end
 
@@ -74,12 +98,12 @@ module ParallelMatrixFormatter
         start_orchestrator
         # Orchestrator process should also run tests to maximize parallelization
         # Always start process formatter for orchestrator to ensure it participates in testing
-        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        if @config['environment']['debug']
           debug_puts "Process #{Process.pid}: Orchestrator starting process formatter with #{total_examples} examples"
         end
         start_process_formatter(total_examples, orchestrator: @orchestrator, orchestrator_process: true)
       else
-        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        if @config['environment']['debug']
           debug_puts "Process #{Process.pid}: Non-orchestrator starting process formatter with #{total_examples} examples"
         end
         start_process_formatter(total_examples)
@@ -123,7 +147,7 @@ module ParallelMatrixFormatter
           @@early_suppression_layer&.restore
           @@early_suppression_applied = false
         rescue => e
-          warn "Warning: Failed to restore early suppression in close: #{e.message}" if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          warn "Warning: Failed to restore early suppression in close: #{e.message}" if @config['environment']['debug']
         end
       end
       
@@ -148,7 +172,7 @@ module ParallelMatrixFormatter
       @is_orchestrator_process = orchestrator_process?
       
       # Debug output before suppression
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         # Use preserved stderr for debug if available, otherwise fallback to current
         if SuppressionLayer.original_stderr
           SuppressionLayer.original_stderr.puts "Process #{Process.pid}: orchestrator=#{@is_orchestrator_process}"
@@ -164,7 +188,7 @@ module ParallelMatrixFormatter
           @@early_suppression_layer&.restore
           @@early_suppression_applied = false
         rescue => e
-          warn "Warning: Failed to restore early suppression: #{e.message}" if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+          warn "Warning: Failed to restore early suppression: #{e.message}" if @config['environment']['debug']
         end
       end
       
@@ -177,7 +201,7 @@ module ParallelMatrixFormatter
         suppression_level = determine_suppression_level
         @suppression_layer = SuppressionLayer.new(suppression_level)
         
-        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        if @config['environment']['debug']
           debug_puts "Process #{Process.pid}: Applying suppression level #{suppression_level}"
         end
         @suppression_layer.suppress
@@ -190,7 +214,7 @@ module ParallelMatrixFormatter
 
     def determine_suppression_level
       # Check environment variables for suppression control
-      case ENV.fetch('PARALLEL_MATRIX_FORMATTER_SUPPRESS', nil)
+      case @config['environment']['suppress_level']
       when 'none', '0', 'false'
         :none
       when 'ruby_warnings', '1'
@@ -219,10 +243,10 @@ module ParallelMatrixFormatter
       # Use a file-based lock to ensure only one process becomes the orchestrator
       
       # If explicitly set as orchestrator, always return true
-      return true if ENV['PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR'] == 'true'
+      return true if @config['environment']['force_orchestrator']
       
       # If server is already running, we're not the orchestrator
-      return false if ENV['PARALLEL_MATRIX_FORMATTER_SERVER']
+      return false if @config['environment']['server_path']
       
       # Use file-based locking to determine orchestrator
       lock_file = '/tmp/parallel_matrix_formatter_orchestrator.lock'
@@ -260,7 +284,7 @@ module ParallelMatrixFormatter
       server_path = @orchestrator.start
       if server_path
         # Only output if not suppressed
-        unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
+        unless @config['environment']['no_suppress']
           if SuppressionLayer.original_stderr
             SuppressionLayer.original_stderr.puts 'Matrix Digital Rain formatter started (orchestrator mode)'
             SuppressionLayer.original_stderr.puts "Server: #{server_path}"
@@ -270,7 +294,7 @@ module ParallelMatrixFormatter
           end
         end
       else
-        warn 'Failed to start orchestrator - falling back to standard output' unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
+        warn 'Failed to start orchestrator - falling back to standard output' unless @config['environment']['no_suppress']
         @suppression_layer&.restore
       end
     end
@@ -283,14 +307,14 @@ module ParallelMatrixFormatter
         process_id = orchestrator_process ? "#{Process.pid}-orchestrator" : nil
         @process_formatter = ProcessFormatter.new(@config, process_id, orchestrator)
         @process_formatter.start(total_examples)
-      elsif ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      elsif @config['environment']['debug']
         debug_puts "Process #{Process.pid}: No examples found, skipping process formatter"
       end
     end
 
     def debug_puts(message)
       # Use original stderr for debug output, bypassing suppression
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         if SuppressionLayer.original_stderr
           SuppressionLayer.original_stderr.puts(message)
         else
