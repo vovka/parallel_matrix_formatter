@@ -6,6 +6,22 @@ require_relative 'update_strategies'
 require_relative 'suppression_layer'
 
 module ParallelMatrixFormatter
+  # Orchestrator manages the central display and coordinates communication between
+  # multiple test processes during parallel execution. It receives progress updates
+  # from worker processes via IPC and renders the matrix digital rain display.
+  #
+  # Key responsibilities:
+  # - Start and manage IPC server for inter-process communication
+  # - Receive and process progress updates from worker processes
+  # - Render real-time matrix digital rain display showing test progress
+  # - Track test results and failure counts across all processes
+  # - Manage display updates based on configured thresholds and intervals
+  # - Render final summary when all processes complete
+  #
+  # The orchestrator uses a centralized config object for all settings,
+  # eliminating direct ENV access except for setting the server path
+  # for other processes to discover.
+  #
   class Orchestrator
     def initialize(config)
       @config = config

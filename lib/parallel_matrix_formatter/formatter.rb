@@ -7,10 +7,31 @@ require_relative 'orchestrator'
 require_relative 'process_formatter'
 
 module ParallelMatrixFormatter
+  # Formatter is the main RSpec formatter class that coordinates the matrix digital rain display
+  # during parallel test execution. It acts as either an orchestrator (managing the display)
+  # or a worker process (reporting test progress to the orchestrator).
+  #
+  # Key responsibilities:
+  # - Detect if running in parallel test environment
+  # - Determine process role (orchestrator vs worker)
+  # - Apply output suppression to prevent interference between processes
+  # - Start and manage the orchestrator for display coordination
+  # - Forward test events to process formatter for progress reporting
+  #
+  # Environment Detection:
+  # - Uses ENV variables at class load time to detect parallel execution
+  # - Applies early suppression to prevent output leakage during initialization
+  # - Later uses centralized config object for all runtime decisions
+  #
   class Formatter < RSpec::Core::Formatters::BaseFormatter
     # Apply early suppression when the class is loaded if we detect parallel testing
+    # This is necessary because output can leak during class loading in parallel environments
+    # Note: This is one of the few places where ENV is accessed directly, as it occurs
+    # before the config system is available
     @@early_suppression_applied = false
     
+    # Detect parallel testing environment and apply early suppression if needed
+    # @return [void]
     def self.apply_early_suppression_if_needed
       return if @@early_suppression_applied
       
@@ -37,7 +58,8 @@ module ParallelMatrixFormatter
     # Apply early suppression as soon as the class is loaded
     apply_early_suppression_if_needed
     
-    # Class method to reset state (useful for multiple test runs)
+    # Reset early suppression state (useful for testing)
+    # @return [void]
     def self.reset_early_suppression
       if @@early_suppression_applied
         @@early_suppression_layer&.restore

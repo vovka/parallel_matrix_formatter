@@ -7,6 +7,24 @@ rescue LoadError
 end
 
 module ParallelMatrixFormatter
+  # DigitalRainRenderer creates the Matrix-style digital rain visual display
+  # showing real-time test progress across multiple parallel processes.
+  # It handles color detection, terminal formatting, and the animated effect.
+  #
+  # Key responsibilities:
+  # - Detect terminal color support based on environment and configuration
+  # - Render time display with optional custom digit symbols
+  # - Create animated process columns showing test progress percentages
+  # - Display individual test results as colored dots (pass/fail/pending)
+  # - Generate final summary with test counts and timing information
+  # - Apply appropriate colors based on terminal capabilities
+  #
+  # Color Detection:
+  # - Uses centralized config object for environment-based color detection
+  # - Respects NO_COLOR and FORCE_COLOR environment conventions
+  # - Automatically detects CI environments that support colors
+  # - Falls back to TTY detection for interactive terminals
+  #
   class DigitalRainRenderer
     def initialize(config)
       @config = config

@@ -4,6 +4,22 @@ require_relative 'ipc'
 require_relative 'suppression_layer'
 
 module ParallelMatrixFormatter
+  # ProcessFormatter handles test progress reporting from individual test processes
+  # to the orchestrator. It tracks test execution progress and sends updates via
+  # either direct method calls (same process) or IPC (separate processes).
+  #
+  # Key responsibilities:
+  # - Connect to orchestrator via IPC or direct reference
+  # - Register process with orchestrator including total test count
+  # - Send progress updates as tests are executed
+  # - Report individual test results (pass/fail/pending) for live display
+  # - Send completion notification when all tests finish
+  # - Apply runner-level output suppression for clean display
+  #
+  # The formatter uses a centralized config object for all settings,
+  # eliminating direct ENV access except during connection establishment
+  # where it may fall back to reading the server path from filesystem.
+  #
   class ProcessFormatter
     def initialize(config, process_id = nil, orchestrator = nil)
       @config = config
