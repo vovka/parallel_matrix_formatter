@@ -75,30 +75,41 @@ module ParallelMatrixFormatter
     private
 
     def connect_to_orchestrator
-      # Wait for server to be available with retry
-      max_attempts = 50  # 5 seconds with 0.1 second intervals
-      attempts = 0
+      # Connect to orchestrator using centralized IPC configuration
+      ipc_config = @config['ipc']
+      max_attempts = ipc_config['retry_attempts']
+      retry_delay = ipc_config['retry_delay']
+      connection_timeout = ipc_config['connection_timeout']
       
-      while attempts < max_attempts
+      attempts = 0
+      start_time = Time.now
+      
+      while attempts < max_attempts && (Time.now - start_time) < connection_timeout
+        # Get server path from configuration first
         server_path = @config['environment']['server_path']
         
-        # If not in environment, try reading from file
-        if !server_path
-          server_file = '/tmp/parallel_matrix_formatter_server.path'
-          server_path = File.read(server_file).strip if File.exist?(server_file)
+        # Fallback to reading from configured server path file only if explicitly configured
+        if !server_path && ipc_config['server_path_file']
+          server_path = File.read(ipc_config['server_path_file']).strip if File.exist?(ipc_config['server_path_file'])
         end
+        
+        # Use default server path from IPC config if still not found
+        server_path ||= ipc_config['server_path']
         
         break unless server_path  # No server configured
         
         begin
-          @ipc_client = IPC.create_client(server_path)
+          @ipc_client = IPC.create_client(
+            server_path,
+            prefer_unix_socket: ipc_config['prefer_unix_socket']
+          )
           @ipc_client.connect
           @connected = true
           return
         rescue IPC::IPCError
           # Server not ready yet, wait and retry
           attempts += 1
-          sleep(0.1) if attempts < max_attempts
+          sleep(retry_delay) if attempts < max_attempts
         end
       end
 
@@ -219,7 +230,7 @@ module ParallelMatrixFormatter
       # Always send first update
       return true if @last_progress_percent.zero? && current_percent.positive?
 
-      # Send if progress threshold is met
+      # Send if progress threshold is met using configured thresholds
       thresholds = @config['update']['percent_thresholds'] || [5]
       progress_diff = current_percent - @last_progress_percent
 

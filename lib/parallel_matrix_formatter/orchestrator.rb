@@ -43,24 +43,31 @@ module ParallelMatrixFormatter
       @last_update_time = @start_time
       @running = true
 
-      # Start IPC server
-      @ipc_server = IPC.create_server
+      # Start IPC server using centralized configuration
+      ipc_config = @config['ipc']
+      @ipc_server = IPC.create_server(
+        prefer_unix_socket: ipc_config['prefer_unix_socket'],
+        server_path: ipc_config['server_path']
+      )
       server_path = @ipc_server.start
 
-      # Store server path for child processes to connect
-      # Note: We still set ENV here as it's needed for inter-process communication
-      ENV['PARALLEL_MATRIX_FORMATTER_SERVER'] = server_path
-
-      # Also write to a file for other processes to read
-      server_file = '/tmp/parallel_matrix_formatter_server.path'
-      File.write(server_file, server_path)
+      # Store server path for child processes to connect using configured fallback method
+      # This is the only ENV assignment allowed, and only when fallback discovery is enabled
+      if @config['environment']['force_orchestrator'] || ipc_config['server_path_file']
+        ENV['PARALLEL_MATRIX_FORMATTER_SERVER'] = server_path
+        
+        # Write to configured server path file for fallback discovery if specified
+        if ipc_config['server_path_file']
+          File.write(ipc_config['server_path_file'], server_path)
+        end
+      end
 
       # Start processing messages
       process_messages
 
       server_path
     rescue IPC::IPCError => e
-      warn "Failed to start orchestrator: #{e.message}" unless @config['environment']['no_suppress']
+      warn "Failed to start orchestrator: #{e.message}" unless @config['suppression']['no_suppress']
       nil
     end
 
@@ -71,9 +78,11 @@ module ParallelMatrixFormatter
       # Finalize current line before printing summaries
       finalize_current_line
 
-      # Clean up server path file
-      server_file = '/tmp/parallel_matrix_formatter_server.path'
-      File.delete(server_file) if File.exist?(server_file)
+      # Clean up server path file using configured path
+      ipc_config = @config['ipc']
+      if ipc_config['server_path_file'] && File.exist?(ipc_config['server_path_file'])
+        File.delete(ipc_config['server_path_file'])
+      end
 
       print_final_summary
     end

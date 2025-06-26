@@ -209,11 +209,11 @@ module ParallelMatrixFormatter
       end
     end
 
-    def self.create_server(prefer_unix_socket: true)
+    def self.create_server(prefer_unix_socket: true, server_path: nil)
       if prefer_unix_socket && unix_socket_supported?
-        UnixSocketServer.new
+        UnixSocketServer.new(server_path)
       else
-        FileBasedIPC.new
+        FileBasedIPC.new(server_path)
       end
     end
 
