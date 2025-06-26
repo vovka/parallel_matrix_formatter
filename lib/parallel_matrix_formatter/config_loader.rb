@@ -67,6 +67,12 @@ module ParallelMatrixFormatter
         'force_orchestrator' => false,
         'server_path' => nil,
         'is_parallel' => false
+      },
+      # Suppression configuration
+      'suppression' => {
+        'level' => 'auto',  # auto, none, ruby_warnings, app_warnings, app_output, gem_output, all, runner
+        'no_suppress' => false,
+        'respect_debug' => false
       }
     }.freeze
 
@@ -214,6 +220,11 @@ module ParallelMatrixFormatter
           'force_orchestrator' => env_true?('PARALLEL_MATRIX_FORMATTER_ORCHESTRATOR'),
           'server_path' => ENV['PARALLEL_MATRIX_FORMATTER_SERVER'],
           'is_parallel' => detect_parallel_execution
+        },
+        'suppression' => {
+          'no_suppress' => env_true?('PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS') || 
+                          detect_debug_environment,
+          'respect_debug' => env_true?('PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG')
         }
       }
     end
@@ -269,6 +280,13 @@ module ParallelMatrixFormatter
       ]
       
       parallel_env_vars.any? { |var| env_present?(var) }
+    end
+
+    # Detect if running in a debug environment that should disable suppression
+    # @return [Boolean] True if debug environment is detected
+    def detect_debug_environment
+      debug_env_vars = %w[DEBUG VERBOSE CI_DEBUG RUNNER_DEBUG]
+      debug_env_vars.any? { |var| env_present?(var) && ENV[var] != 'false' }
     end
 
     # Deep merge two hashes, with second hash taking precedence

@@ -1,47 +1,43 @@
 # frozen_string_literal: true
 
+require_relative 'suppression_config'
+
 module ParallelMatrixFormatter
+  # SuppressionLayer manages output suppression for the parallel matrix formatter.
+  # It provides a clean interface for suppressing stdout, stderr, and Ruby warnings
+  # based on configuration rather than direct environment variable access.
+  #
+  # This class ensures only one suppression level is active at a time and provides
+  # methods to preserve original IO streams for orchestrator communication.
+  #
+  # Usage:
+  #   # Create and apply suppression
+  #   layer = SuppressionLayer.new(config, level: :all)
+  #   layer.suppress
+  #   
+  #   # Restore original output
+  #   layer.restore
+  #
+  #   # Class-level convenience methods
+  #   SuppressionLayer.suppress_with_config(config, level: :runner)
+  #   SuppressionLayer.restore_all
+  #
   class SuppressionLayer
-    class NullIO
-      def write(*args); end
-      def puts(*args); end
-      def print(*args); end
-      def printf(*args); end
-      def flush; end
-      def sync=(*args); end
-      def close; end
-
-      def closed?
-        false
-      end
-
-      def tty?
-        false
-      end
-    end
-
-    SUPPRESSION_LEVELS = {
-      none: 0,
-      ruby_warnings: 1,
-      app_warnings: 2,
-      app_output: 3,
-      gem_output: 4,
-      all: 5,
-      runner: 6  # Complete suppression for test runners, ignores debug mode
-    }.freeze
-
     # Class-level storage for original IO streams (before any suppression)
     @@original_stdout = nil
     @@original_stderr = nil
     @@original_verbose = nil
     @@io_preserved = false
 
-    def self.suppress(level = :all)
-      new(level).suppress
+    # Active suppression instance (ensures only one level active at a time)
+    @@active_instance = nil
+
+    def self.suppress_with_config(config, level: :auto, is_orchestrator: false, is_runner: false)
+      new(config).suppress(level: level, is_orchestrator: is_orchestrator, is_runner: is_runner)
     end
 
-    def self.restore
-      @instance&.restore
+    def self.restore_all
+      @@active_instance&.restore
     end
 
     # Preserve original IO streams for orchestrator use
@@ -67,8 +63,12 @@ module ParallelMatrixFormatter
     end
 
     # Apply role-based suppression - always suppress for runners
-    def self.suppress_runner_output
+    # This method is kept for backward compatibility but uses config internally
+    def self.suppress_runner_output(config = nil)
       preserve_original_io unless @@io_preserved
+      
+      # Create minimal config if none provided (for backward compatibility)
+      config ||= { 'suppression' => { 'level' => 'runner', 'no_suppress' => false } }
       
       # For runners, always suppress output completely regardless of debug mode
       $stdout = NullIO.new
@@ -76,48 +76,51 @@ module ParallelMatrixFormatter
       $VERBOSE = nil
     end
 
-    def initialize(level = :all)
-      @level = level.is_a?(Symbol) ? SUPPRESSION_LEVELS[level] : level
+    def initialize(config)
+      @config = config
+      @suppression_config = SuppressionConfig.new(config)
       @original_stdout = nil
       @original_stderr = nil
       @original_verbose = nil
       @suppressed = false
+      @active_level = nil
     end
 
-    def suppress
-      return if @suppressed || should_skip_suppression?
+    # Apply suppression based on configuration and context
+    # @param level [Symbol] Override suppression level (optional)
+    # @param is_orchestrator [Boolean] Whether this process is the orchestrator
+    # @param is_runner [Boolean] Whether this process is a test runner
+    def suppress(level: :auto, is_orchestrator: false, is_runner: false)
+      # Ensure only one suppression layer is active at a time
+      if @@active_instance && @@active_instance != self
+        @@active_instance.restore
+      end
+
+      return if @suppressed || @suppression_config.suppression_disabled?
+
+      # Determine the actual suppression level to use
+      @active_level = if level == :auto
+                        @suppression_config.determine_level(
+                          is_orchestrator: is_orchestrator,
+                          is_runner: is_runner
+                        )
+                      else
+                        level
+                      end
 
       # Preserve original IO at class level if not already done
       self.class.preserve_original_io
 
+      # Store instance-level original IO for restoration
       @original_stdout = $stdout
       @original_stderr = $stderr
       @original_verbose = $VERBOSE
 
-      $VERBOSE = nil if @level >= 1
-
-      $stderr = NullIO.new if @level >= 3
-
-      $stdout = NullIO.new if @level >= 4
-
-      if @level >= 5
-        $stdout = NullIO.new
-        # Only suppress stderr if debug mode is not enabled
-        unless ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-          $stderr = NullIO.new
-        end
-        $VERBOSE = nil
-      end
-
-      # Level 6 (runner) - Complete suppression regardless of debug mode
-      if @level >= 6
-        $stdout = NullIO.new
-        $stderr = NullIO.new
-        $VERBOSE = nil
-      end
+      # Apply suppression based on determined level
+      apply_suppression(@active_level)
 
       @suppressed = true
-      self.class.instance_variable_set(:@instance, self)
+      @@active_instance = self
     end
 
     def restore
@@ -128,24 +131,61 @@ module ParallelMatrixFormatter
       $VERBOSE = @original_verbose unless @original_verbose.nil?
 
       @suppressed = false
-      self.class.instance_variable_set(:@instance, nil)
+      @active_level = nil
+      @@active_instance = nil if @@active_instance == self
+    end
+
+    # Get the currently active suppression level
+    # @return [Symbol, nil] The active suppression level or nil if not suppressed
+    def active_level
+      @suppressed ? @active_level : nil
     end
 
     private
 
-    def should_skip_suppression?
-      # Check various environment variables that might indicate we should not suppress output
-      # Only skip suppression if explicitly disabled, not for general debug flags
-      env_vars = %w[
-        PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS
-      ]
-
-      # Only check for general debug flags if explicitly enabled
-      if ENV['PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG']
-        env_vars += %w[DEBUG VERBOSE CI_DEBUG RUNNER_DEBUG]
+    # Apply the specific suppression based on level
+    # @param level [Symbol] The suppression level to apply
+    def apply_suppression(level)
+      # Suppress Ruby warnings
+      if @suppression_config.suppresses_ruby_warnings?(level)
+        $VERBOSE = nil
       end
 
-      env_vars.any? { |var| ENV.fetch(var, nil) && ENV[var] != 'false' }
+      # Suppress stderr (application and gem error output)
+      if @suppression_config.suppresses_stderr?(level)
+        $stderr = NullIO.new
+      end
+
+      # Suppress stdout (application and gem output)
+      if @suppression_config.suppresses_stdout?(level)
+        $stdout = NullIO.new
+      end
+
+      # For complete suppression (runner level), ignore debug mode
+      if @suppression_config.complete_suppression?(level)
+        $stdout = NullIO.new
+        $stderr = NullIO.new
+        $VERBOSE = nil
+      end
+    end
+
+    # NullIO class for redirecting output to nowhere
+    class NullIO
+      def write(*args); end
+      def puts(*args); end
+      def print(*args); end
+      def printf(*args); end
+      def flush; end
+      def sync=(*args); end
+      def close; end
+
+      def closed?
+        false
+      end
+
+      def tty?
+        false
+      end
     end
   end
 end

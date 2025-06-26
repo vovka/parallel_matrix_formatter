@@ -40,9 +40,17 @@ module ParallelMatrixFormatter
       if ENV['PARALLEL_SPLIT_TEST_PROCESSES'] || ENV['PARALLEL_WORKERS'] || ENV['TEST_ENV_NUMBER']
         begin
           # Apply complete suppression early to prevent output leakage during class loading
-          # Use 'runner' level for maximum suppression
-          @@early_suppression_layer = SuppressionLayer.new(:runner)
-          @@early_suppression_layer.suppress
+          # Create minimal config for early suppression since ConfigLoader isn't available yet
+          minimal_config = {
+            'suppression' => {
+              'level' => 'runner',
+              'no_suppress' => false,
+              'respect_debug' => false
+            }
+          }
+          
+          @@early_suppression_layer = SuppressionLayer.new(minimal_config)
+          @@early_suppression_layer.suppress(level: :runner, is_runner: true)
           @@early_suppression_applied = true
           
           # This will be restored/overridden when the actual formatter is initialized
@@ -176,9 +184,12 @@ module ParallelMatrixFormatter
       
       if should_suppress
         # Apply suppression for non-orchestrator processes
-        suppression_level = determine_suppression_level
-        @suppression_layer = SuppressionLayer.new(suppression_level)
-        @suppression_layer.suppress
+        @suppression_layer = SuppressionLayer.new(@config)
+        @suppression_layer.suppress(
+          level: :auto,
+          is_orchestrator: @is_orchestrator_process,
+          is_runner: true  # Non-orchestrator processes are typically runners
+        )
       else
         # Orchestrator processes: preserve original IO but don't suppress at formatter level
         # ProcessFormatter within orchestrator will handle its own suppression
@@ -187,8 +198,8 @@ module ParallelMatrixFormatter
     end
 
     def determine_suppression_level
-      # Simplified suppression logic (removed environment variable checks)
-      # Default behavior: orchestrator uses 'all', non-orchestrator uses 'runner'
+      # This method is kept for backward compatibility but is no longer used
+      # The SuppressionLayer now determines levels automatically based on config
       @is_orchestrator_process ? :all : :runner
     end
 
