@@ -277,25 +277,17 @@ module ParallelMatrixFormatter
 
     def detect_color_support
       # Check for explicit color disabling
-      return false if ENV['NO_COLOR']
+      return false if @config['environment']['no_color']
 
       # Check for explicit color forcing
-      return true if ENV['FORCE_COLOR']
+      return true if @config['environment']['force_color']
 
       # Check configuration method
       color_method = @config.dig('colors', 'method')&.to_s&.downcase
       return false if color_method == 'none'
 
       # Check for CI environments that support colors
-      ci_environments = %w[
-        CI CONTINUOUS_INTEGRATION
-        GITHUB_ACTIONS GITHUB_WORKFLOW
-        TRAVIS CIRCLECI JENKINS_URL
-        BUILDKITE GITLAB_CI
-        APPVEYOR TEAMCITY_VERSION
-      ]
-
-      return true if ci_environments.any? { |env| ENV[env] }
+      return true if @config['environment']['is_ci']
 
       # Check if stdout is a TTY (traditional terminal detection)
       $stdout.tty?

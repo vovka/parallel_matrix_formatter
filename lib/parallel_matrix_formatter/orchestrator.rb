@@ -32,6 +32,7 @@ module ParallelMatrixFormatter
       server_path = @ipc_server.start
 
       # Store server path for child processes to connect
+      # Note: We still set ENV here as it's needed for inter-process communication
       ENV['PARALLEL_MATRIX_FORMATTER_SERVER'] = server_path
 
       # Also write to a file for other processes to read
@@ -43,7 +44,7 @@ module ParallelMatrixFormatter
 
       server_path
     rescue IPC::IPCError => e
-      warn "Failed to start orchestrator: #{e.message}" unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
+      warn "Failed to start orchestrator: #{e.message}" unless @config['environment']['no_suppress']
       nil
     end
 
@@ -63,7 +64,7 @@ module ParallelMatrixFormatter
 
     def handle_direct_message(message)
       # Public method to handle messages from same-process formatters
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         message_type = message.is_a?(Hash) ? (message[:type] || message['type']) : 'unknown'
         process_id = message.is_a?(Hash) ? (message[:process_id] || message['process_id']) : 'unknown'
         debug_puts "Orchestrator: Received direct #{message_type} message from process #{process_id}"
@@ -112,7 +113,7 @@ module ParallelMatrixFormatter
     def handle_process_registration(message)
       process_id = message['process_id']
 
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         debug_puts "Orchestrator: Registering process #{process_id} with #{message['total_tests']} tests"
         debug_puts "Orchestrator: Total registered processes: #{@processes.keys.length + 1}"
       end
@@ -147,7 +148,7 @@ module ParallelMatrixFormatter
       if message['test_result']
         process[:test_results] << message['test_result']
 
-        if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+        if @config['environment']['debug']
           debug_puts "Orchestrator: Rendering live test result #{message['test_result']['status']} from process #{process_id}"
         end
 
@@ -188,7 +189,7 @@ module ParallelMatrixFormatter
 
     def handle_error(message)
       # Log error but continue processing
-      warn "Orchestrator error: #{message['error']}" unless ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
+      warn "Orchestrator error: #{message['error']}" unless @config['environment']['no_suppress']
     end
 
     def should_update_display?
@@ -212,7 +213,7 @@ module ParallelMatrixFormatter
             threshold_crossed = true
             @process_thresholds[process_id] = current_progress
 
-            if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+            if @config['environment']['debug']
               debug_puts "Orchestrator: Process #{process_id} crossed threshold: #{last_threshold_level}% -> #{current_threshold_level}%"
             end
             break
@@ -238,7 +239,7 @@ module ParallelMatrixFormatter
     def update_base_display
       return if @processes.empty?
 
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         debug_puts "Orchestrator: Updating display with #{@processes.size} processes: #{@processes.keys.join(', ')}"
       end
 
@@ -266,7 +267,7 @@ module ParallelMatrixFormatter
         )
       end
 
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
+      if @config['environment']['debug']
         debug_puts "Orchestrator: Rendered #{process_columns.size} process columns"
       end
 
@@ -340,7 +341,7 @@ module ParallelMatrixFormatter
 
     def debug_puts(message)
       # Use original stderr for debug output, bypassing suppression
-      if ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] && SuppressionLayer.original_stderr
+      if @config['environment']['debug'] && SuppressionLayer.original_stderr
         SuppressionLayer.original_stderr.puts(message)
       end
     end
