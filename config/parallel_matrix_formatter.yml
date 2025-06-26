@@ -1,0 +1,48 @@
+# Matrix Digital Rain Parallel RSpec Formatter Configuration
+
+# Digits configuration for time display
+digits:
+  use_custom: true
+  symbols: "０１２３４５６７８９"  # Full-width Japanese digits
+
+# Katakana alphabet for digital rain effect
+katakana_alphabet: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポァィゥェォャュョッ"
+
+# Symbols for test results
+pass_symbols: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
+fail_symbols: "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ"
+pending_symbol: "🥄"
+
+# Color configuration
+colors:
+  time: "green"
+  percent: "red"
+  rain: "green"
+  pass_dot: "green"
+  fail_dot: "red"
+  pending_dot: "white"
+  # Color output method: "auto", "rainbow", "ansi", or "none"
+  # auto: tries rainbow first, falls back to ansi
+  # rainbow: uses rainbow gem (may not work in all CI environments)
+  # ansi: uses direct ANSI escape codes (works in most CI environments)
+  # none: disables colors
+  method: "auto"
+
+# Update strategies
+update:
+  interval_seconds: 1
+  percent_thresholds: [5]  # Update when any process percentage increases by 5%
+
+# Display configuration
+display:
+  column_width: 15
+  show_time_digits: true
+  rain_density: 0.7  # Probability of showing rain character vs space
+
+# Fade effect configuration for digital rain columns
+fade_effect:
+  enabled: true
+  column_height: 5  # Number of rows per column (vertical display)
+  fade_levels: 5    # Number of brightness levels (1 = brightest, 5 = dimmest)
+  bright_color: "bright_green"  # Color for the brightest characters
+  dim_color: "green"            # Color for the dimmest characters
