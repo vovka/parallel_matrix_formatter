@@ -2,6 +2,9 @@
 
 require 'yaml'
 require 'pathname'
+require 'tmpdir'
+require 'socket'
+require_relative 'ipc_config_processor'
 
 module ParallelMatrixFormatter
   # ConfigLoader centralizes configuration loading for the parallel matrix formatter.
@@ -73,6 +76,20 @@ module ParallelMatrixFormatter
         'level' => 'auto',  # auto, none, ruby_warnings, app_warnings, app_output, gem_output, all, runner
         'no_suppress' => false,
         'respect_debug' => false
+      },
+      # IPC (Inter-Process Communication) configuration
+      # All IPC settings are centralized here to eliminate direct ENV access
+      # and file-based server discovery except for explicit fallback scenarios
+      'ipc' => {
+        'mode' => 'auto',              # auto, unix_socket, file_based
+        'prefer_unix_socket' => true,  # Prefer Unix sockets when available (not on Windows)
+        'server_path' => nil,          # Server socket path or base directory (auto-generated if nil)
+        'temp_dir' => nil,             # Base temp directory for IPC files (uses system temp if nil)
+        'connection_timeout' => 5.0,   # Timeout in seconds for client connections
+        'retry_attempts' => 50,        # Number of connection retry attempts
+        'retry_delay' => 0.1,          # Delay between retry attempts in seconds
+        'orchestrator_lock_file' => nil, # Path to orchestrator lock file (auto-generated if nil)
+        'server_path_file' => nil      # Path to server path file for fallback discovery (auto-generated if nil)
       }
     }.freeze
 
@@ -208,6 +225,9 @@ module ParallelMatrixFormatter
                                           else
                                             '0123456789'.chars
                                           end
+
+      # Process IPC configuration - generate paths and validate settings
+      IpcConfigProcessor.process_ipc_config(config)
 
       config
     end

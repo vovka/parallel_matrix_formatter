@@ -205,7 +205,7 @@ module ParallelMatrixFormatter
 
     def orchestrator_process?
       # Check if this is the main process that should act as orchestrator
-      # Use a file-based lock to ensure only one process becomes the orchestrator
+      # Use centralized IPC configuration for lock file path
       
       # If explicitly set as orchestrator, always return true
       return true if @config['environment']['force_orchestrator']
@@ -213,8 +213,8 @@ module ParallelMatrixFormatter
       # If server is already running, we're not the orchestrator
       return false if @config['environment']['server_path']
       
-      # Use file-based locking to determine orchestrator
-      lock_file = '/tmp/parallel_matrix_formatter_orchestrator.lock'
+      # Use configured lock file path for orchestrator determination
+      lock_file = @config['ipc']['orchestrator_lock_file']
       
       begin
         # Try to create lock file atomically
