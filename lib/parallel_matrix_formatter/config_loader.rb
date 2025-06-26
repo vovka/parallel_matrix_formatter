@@ -174,7 +174,7 @@ module ParallelMatrixFormatter
     # @param config [Hash] Full configuration
     # @raise [ConfigError] If required sections are missing
     def validate_required_sections(config)
-      required_sections = %w[colors update display]
+      required_sections = %w[update display]
       required_sections.each do |section|
         next if config[section].is_a?(Hash)
 

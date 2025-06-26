@@ -44,37 +44,8 @@ RSpec.describe ParallelMatrixFormatter::ConfigLoader do
         config = described_class.load
 
         expect(config['environment']).to be_a(Hash)
-        expect(config['environment']['debug']).to be_in([true, false])
         expect(config['environment']['no_suppress']).to be_in([true, false])
         expect(config['environment']['is_parallel']).to be_in([true, false])
-        expect(config['environment']['is_ci']).to be_in([true, false])
-      end
-
-      it 'processes debug environment variable' do
-        old_env = ENV['PARALLEL_MATRIX_FORMATTER_DEBUG']
-        ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] = 'true'
-        
-        config = described_class.load
-        expect(config['environment']['debug']).to be true
-        
-      ensure
-        ENV['PARALLEL_MATRIX_FORMATTER_DEBUG'] = old_env
-      end
-
-      it 'processes color environment variables' do
-        old_no_color = ENV['NO_COLOR']
-        old_force_color = ENV['FORCE_COLOR']
-        
-        ENV['NO_COLOR'] = '1'
-        ENV['FORCE_COLOR'] = nil
-        
-        config = described_class.load
-        expect(config['environment']['no_color']).to be true
-        expect(config['environment']['force_color']).to be false
-        
-      ensure
-        ENV['NO_COLOR'] = old_no_color
-        ENV['FORCE_COLOR'] = old_force_color
       end
 
       it 'detects parallel execution environment' do
@@ -86,6 +57,22 @@ RSpec.describe ParallelMatrixFormatter::ConfigLoader do
         
       ensure
         ENV['PARALLEL_WORKERS'] = old_parallel
+      end
+
+      it 'processes suppression environment variables' do
+        old_no_suppress = ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
+        old_suppress_level = ENV['PARALLEL_MATRIX_FORMATTER_SUPPRESS']
+        
+        ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS'] = 'true'
+        ENV['PARALLEL_MATRIX_FORMATTER_SUPPRESS'] = 'runner'
+        
+        config = described_class.load
+        expect(config['environment']['no_suppress']).to be true
+        expect(config['environment']['suppress_level']).to eq('runner')
+        
+      ensure
+        ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS'] = old_no_suppress
+        ENV['PARALLEL_MATRIX_FORMATTER_SUPPRESS'] = old_suppress_level
       end
     end
 

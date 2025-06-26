@@ -14,25 +14,15 @@ RSpec.describe ParallelMatrixFormatter::DigitalRainRenderer do
       'pass_symbols_chars' => 'アイウエオ'.chars,
       'fail_symbols_chars' => 'カキクケコ'.chars,
       'pending_symbol' => '🥄',
-      'colors' => {
-        'time' => 'green',
-        'percent' => 'red',
-        'rain' => 'green',
-        'pass_dot' => 'green',
-        'fail_dot' => 'red',
-        'pending_dot' => 'white'
-      },
       'display' => {
         'column_width' => 15,
         'show_time_digits' => true,
         'rain_density' => 0.7
       },
       'fade_effect' => {
-        'enabled' => false,
+        'enabled' => true,
         'column_height' => 5,
-        'fade_levels' => 5,
-        'bright_color' => 'bright_green',
-        'dim_color' => 'green'
+        'fade_levels' => 3
       }
     }
   end
@@ -40,149 +30,208 @@ RSpec.describe ParallelMatrixFormatter::DigitalRainRenderer do
   let(:renderer) { described_class.new(config) }
 
   describe '#render_time_column' do
-    it 'renders time with custom digits' do
+    it 'renders current time with custom digits when enabled' do
       result = renderer.render_time_column
+      
+      # Should contain custom digits (０-９) and colons
+      expect(result).to match(/[０-９:]+/)
+      # Should not contain regular digits when custom is enabled
+      expect(result).not_to match(/[0-9]/)
+      # Should not contain any ANSI color codes
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
 
-      expect(result).to be_a(String)
-      expect(result).to include(':') # Should contain time format separators
+    it 'renders standard time when custom digits disabled' do
+      config_no_custom = config.merge('digits' => { 'use_custom' => false, 'symbols_chars' => '0123456789'.chars })
+      renderer_no_custom = described_class.new(config_no_custom)
+      
+      result = renderer_no_custom.render_time_column
+      
+      # Should contain regular digits and colons
+      expect(result).to match(/[0-9:]+/)
+      # Should not contain any ANSI color codes
+      expect(result).not_to match(/\e\[[\d;]*m/)
     end
   end
 
   describe '#render_process_column' do
-    it 'renders process column with progress' do
+    it 'renders progress percentage with ASCII characters only' do
       result = renderer.render_process_column(1, 50, 15)
-
-      expect(result).to be_a(String)
-      expect(result.length).to be >= 10 # Should have some content
-      # Check if the result contains percentage digits (without ANSI codes)
-      stripped_result = result.gsub(/\e\[[\d;]*m/, '') # Remove ANSI codes
-      expect(stripped_result).to include('50%')
+      
+      # Should contain percentage
+      expect(result).to include('50%')
+      # Should not contain any ANSI color codes
+      expect(result).not_to match(/\e\[[\d;]*m/)
+      # Should be exactly the expected width
+      expect(result.length).to eq(15)
     end
 
-    it 'renders 100% in red for first completion' do
+    it 'renders 100% completion correctly' do
       result = renderer.render_process_column(1, 100, 15, true)
-
-      expect(result).to be_a(String)
-      stripped_result = result.gsub(/\e\[[\d;]*m/, '') # Remove ANSI codes
-      expect(stripped_result).to include('100%')
-      # Should contain red color codes for first completion
-      expect(result).to match(/\e\[31m/) # Red ANSI code
+      
+      # Should contain percentage
+      expect(result).to include('100%')
+      # Should be ASCII only
+      expect(result).not_to match(/\e\[[\d;]*m/)
     end
 
-    it 'renders 100% in green for subsequent completions' do
-      result = renderer.render_process_column(1, 100, 15, false)
-
-      expect(result).to be_a(String)
-      stripped_result = result.gsub(/\e\[[\d;]*m/, '') # Remove ANSI codes
-      expect(stripped_result).to include('100%')
-      # Should contain green color codes for subsequent completions
-      expect(result).to match(/\e\[32m/) # Green ANSI code
+    it 'handles fade effect when enabled' do
+      fade_config = config.merge('fade_effect' => { 'enabled' => true, 'column_height' => 5, 'fade_levels' => 3 })
+      fade_renderer = described_class.new(fade_config)
+      
+      result = fade_renderer.render_process_column(1, 75, 15)
+      
+      # Should contain percentage
+      expect(result).to include('75%')
+      # Should be ASCII only
+      expect(result).not_to match(/\e\[[\d;]*m/)
+      expect(result.length).to eq(15)
     end
   end
 
   describe '#render_test_dots' do
-    it 'renders test results as dots' do
-      test_results = [
+    let(:test_results) do
+      [
+        { status: 'passed' },
+        { status: 'failed' },
+        { status: 'pending' }
+      ]
+    end
+
+    it 'renders test results as ASCII characters without colors' do
+      result = renderer.render_test_dots(test_results)
+      
+      # Should contain characters from the configured symbol sets
+      expect(result.length).to eq(3)
+      # Should not contain any ANSI color codes
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
+
+    it 'handles symbol status values' do
+      symbol_results = [
         { status: :passed },
         { status: :failed },
         { status: :pending }
       ]
+      
+      result = renderer.render_test_dots(symbol_results)
+      
+      expect(result.length).to eq(3)
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
 
-      result = renderer.render_test_dots(test_results)
+    it 'handles unknown status' do
+      unknown_results = [{ status: 'unknown' }]
+      
+      result = renderer.render_test_dots(unknown_results)
+      
+      expect(result).to eq(' ')
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
+  end
 
-      expect(result).to be_a(String)
-      # Check for ANSI color codes presence (indicating colored output)
-      expect(result).to match(/\e\[[\d;]*m/)
-      # The actual character count should be 3 (one per test) plus ANSI codes
-      stripped_result = result.gsub(/\e\[[\d;]*m/, '') # Remove ANSI codes
-      expect(stripped_result.length).to eq(3)
+  describe '#render_matrix_line' do
+    it 'combines components correctly' do
+      time_column = '12:34:56'
+      process_columns = ['Process1Col', 'Process2Col']
+      test_dots = '...'
+      
+      result = renderer.render_matrix_line(time_column, process_columns, test_dots)
+      
+      expect(result).to eq('12:34:56 Process1Col Process2Col ...')
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
+  end
+
+  describe '#render_failure_summary' do
+    let(:failures) do
+      [
+        {
+          description: 'example should work',
+          location: 'spec/example_spec.rb:10',
+          message: 'Expected true to be false'
+        }
+      ]
+    end
+
+    it 'renders failure summary without colors' do
+      result = renderer.render_failure_summary(failures)
+      
+      expect(result).to include('FAILED EXAMPLES')
+      expect(result).to include('1. example should work')
+      expect(result).to include('Location: spec/example_spec.rb:10')
+      expect(result).to include('Expected true to be false')
+      # Should not contain any ANSI color codes
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
+
+    it 'returns empty string for no failures' do
+      result = renderer.render_failure_summary([])
+      
+      expect(result).to eq('')
+    end
+
+    it 'handles multiline error messages' do
+      failures_multiline = [
+        {
+          description: 'multiline error',
+          location: 'spec/test.rb:5',
+          message: "Line 1\nLine 2\nLine 3"
+        }
+      ]
+      
+      result = renderer.render_failure_summary(failures_multiline)
+      
+      expect(result).to include('   Line 1')
+      expect(result).to include('   Line 2')
+      expect(result).to include('   Line 3')
+      expect(result).not_to match(/\e\[[\d;]*m/)
     end
   end
 
   describe '#render_final_summary' do
-    it 'renders final summary with all statistics' do
+    it 'renders summary without colors' do
       result = renderer.render_final_summary(100, 5, 2, 45.5, [20.1, 25.4], 2)
 
       expect(result).to include('100 examples')
       expect(result).to include('5 failures')
       expect(result).to include('2 pending')
       expect(result).to include('Processes: 2')
+      # Should not contain any ANSI color codes
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
+
+    it 'handles zero failures and pending' do
+      result = renderer.render_final_summary(50, 0, 0, 10.0, [10.0], 1)
+
+      expect(result).to include('50 examples')
+      expect(result).not_to include('failures')
+      expect(result).not_to include('pending')
+      expect(result).not_to match(/\e\[[\d;]*m/)
+    end
+
+    it 'formats durations correctly' do
+      result = renderer.render_final_summary(10, 0, 0, 0.5, [0.5], 1)
+
+      expect(result).to include('500.0 ms')
+      expect(result).not_to match(/\e\[[\d;]*m/)
     end
   end
 
-  describe 'color support detection' do
-    it 'detects GitHub Actions CI environment' do
-      # Create config with colors enabled
-      ci_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
-      
-      # Mock GitHub Actions environment
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return('true')
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return(nil)
-      
-      renderer = described_class.new(ci_config)
-      result = renderer.render_process_column(1, 50, 15)
-      
-      # Should produce colored output in GitHub Actions
-      expect(result).to match(/\e\[[\d;]*m/) # Contains ANSI codes
-    end
+  describe 'ASCII-only output verification' do
+    it 'ensures all methods output ASCII characters without ANSI codes' do
+      # Test all public methods to ensure no ANSI codes are output
+      time_result = renderer.render_time_column
+      process_result = renderer.render_process_column(1, 75, 15)
+      test_result = renderer.render_test_dots([{ status: 'passed' }])
+      failure_result = renderer.render_failure_summary([{ description: 'test', location: 'file:1', message: 'error' }])
+      summary_result = renderer.render_final_summary(10, 1, 0, 1.5, [1.5], 1)
+      matrix_result = renderer.render_matrix_line('12:34:56', ['col1'], '.')
 
-    it 'respects NO_COLOR environment variable' do
-      # Create config with colors enabled  
-      no_color_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
-      
-      # Mock NO_COLOR environment
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return('1')
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return(nil)
-      
-      renderer = described_class.new(no_color_config)
-      result = renderer.render_process_column(1, 50, 15)
-      
-      # Should not produce colored output when NO_COLOR is set
-      expect(result).not_to match(/\e\[[\d;]*m/) # No ANSI codes
-    end
-
-    it 'forces colors with FORCE_COLOR environment variable' do
-      # Create config with colors enabled
-      force_color_config = config.merge('colors' => config['colors'].merge('method' => 'auto'))
-      
-      # Mock FORCE_COLOR environment and non-TTY stdout
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return('1')
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('GITHUB_ACTIONS').and_return(nil)
-      allow($stdout).to receive(:tty?).and_return(false)
-      
-      renderer = described_class.new(force_color_config)
-      result = renderer.render_process_column(1, 50, 15)
-      
-      # Should produce colored output even when stdout is not a TTY
-      expect(result).to match(/\e\[[\d;]*m/) # Contains ANSI codes
-    end
-  end
-
-  describe 'ANSI color fallback' do
-    it 'uses direct ANSI codes when configured' do
-      # Create config with ANSI method specifically
-      ansi_config = config.merge('colors' => config['colors'].merge('method' => 'ansi'))
-      
-      # Mock environment to enable colors
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('NO_COLOR').and_return(nil)
-      allow(ENV).to receive(:[]).with('FORCE_COLOR').and_return('1')
-      
-      ansi_renderer = described_class.new(ansi_config)
-      result = ansi_renderer.render_process_column(1, 100, 15, true)
-      
-      # Should contain red ANSI code for 100% first completion
-      expect(result).to match(/\e\[31m/) # Red ANSI code
-      # Should contain green ANSI code for rain
-      expect(result).to match(/\e\[32m/) # Green ANSI code  
-      # Should contain reset code
-      expect(result).to match(/\e\[0m/) # Reset code
+      [time_result, process_result, test_result, failure_result, summary_result, matrix_result].each do |result|
+        # Verify no ANSI escape sequences are present
+        expect(result).not_to match(/\e\[[\d;]*m/), "Found ANSI codes in: #{result.inspect}"
+      end
     end
   end
 end
