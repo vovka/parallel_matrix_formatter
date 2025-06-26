@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'suppression_config'
+require_relative 'io_manager'
 
 module ParallelMatrixFormatter
   # SuppressionLayer manages output suppression for the parallel matrix formatter.
@@ -12,8 +13,8 @@ module ParallelMatrixFormatter
   #
   # Usage:
   #   # Create and apply suppression
-  #   layer = SuppressionLayer.new(config, level: :all)
-  #   layer.suppress
+  #   layer = SuppressionLayer.new(config)
+  #   layer.suppress(level: :all)
   #   
   #   # Restore original output
   #   layer.restore
@@ -23,12 +24,6 @@ module ParallelMatrixFormatter
   #   SuppressionLayer.restore_all
   #
   class SuppressionLayer
-    # Class-level storage for original IO streams (before any suppression)
-    @@original_stdout = nil
-    @@original_stderr = nil
-    @@original_verbose = nil
-    @@io_preserved = false
-
     # Active suppression instance (ensures only one level active at a time)
     @@active_instance = nil
 
@@ -42,30 +37,23 @@ module ParallelMatrixFormatter
 
     # Preserve original IO streams for orchestrator use
     def self.preserve_original_io
-      return if @@io_preserved
-      
-      @@original_stdout = $stdout
-      @@original_stderr = $stderr
-      @@original_verbose = $VERBOSE
-      @@io_preserved = true
+      IOManager.preserve_original_io
     end
 
     # Get original stdout for orchestrator use
     def self.original_stdout
-      preserve_original_io unless @@io_preserved
-      @@original_stdout
+      IOManager.original_stdout
     end
 
     # Get original stderr for orchestrator use  
     def self.original_stderr
-      preserve_original_io unless @@io_preserved
-      @@original_stderr
+      IOManager.original_stderr
     end
 
     # Apply role-based suppression - always suppress for runners
     # This method is kept for backward compatibility but uses config internally
     def self.suppress_runner_output(config = nil)
-      preserve_original_io unless @@io_preserved
+      IOManager.preserve_original_io
       
       # Create minimal config if none provided (for backward compatibility)
       config ||= { 'suppression' => { 'level' => 'runner', 'no_suppress' => false } }
@@ -99,22 +87,13 @@ module ParallelMatrixFormatter
       return if @suppressed || @suppression_config.suppression_disabled?
 
       # Determine the actual suppression level to use
-      @active_level = if level == :auto
-                        @suppression_config.determine_level(
-                          is_orchestrator: is_orchestrator,
-                          is_runner: is_runner
-                        )
-                      else
-                        level
-                      end
+      @active_level = determine_active_level(level, is_orchestrator, is_runner)
 
       # Preserve original IO at class level if not already done
-      self.class.preserve_original_io
+      IOManager.preserve_original_io
 
       # Store instance-level original IO for restoration
-      @original_stdout = $stdout
-      @original_stderr = $stderr
-      @original_verbose = $VERBOSE
+      store_current_io
 
       # Apply suppression based on determined level
       apply_suppression(@active_level)
@@ -126,10 +105,7 @@ module ParallelMatrixFormatter
     def restore
       return unless @suppressed
 
-      $stdout = @original_stdout if @original_stdout
-      $stderr = @original_stderr if @original_stderr
-      $VERBOSE = @original_verbose unless @original_verbose.nil?
-
+      restore_io_streams
       @suppressed = false
       @active_level = nil
       @@active_instance = nil if @@active_instance == self
@@ -142,6 +118,29 @@ module ParallelMatrixFormatter
     end
 
     private
+
+    def determine_active_level(level, is_orchestrator, is_runner)
+      if level == :auto
+        @suppression_config.determine_level(
+          is_orchestrator: is_orchestrator,
+          is_runner: is_runner
+        )
+      else
+        level
+      end
+    end
+
+    def store_current_io
+      @original_stdout = $stdout
+      @original_stderr = $stderr
+      @original_verbose = $VERBOSE
+    end
+
+    def restore_io_streams
+      $stdout = @original_stdout if @original_stdout
+      $stderr = @original_stderr if @original_stderr
+      $VERBOSE = @original_verbose unless @original_verbose.nil?
+    end
 
     # Apply the specific suppression based on level
     # @param level [Symbol] The suppression level to apply
@@ -166,25 +165,6 @@ module ParallelMatrixFormatter
         $stdout = NullIO.new
         $stderr = NullIO.new
         $VERBOSE = nil
-      end
-    end
-
-    # NullIO class for redirecting output to nowhere
-    class NullIO
-      def write(*args); end
-      def puts(*args); end
-      def print(*args); end
-      def printf(*args); end
-      def flush; end
-      def sync=(*args); end
-      def close; end
-
-      def closed?
-        false
-      end
-
-      def tty?
-        false
       end
     end
   end

@@ -20,7 +20,7 @@ RSpec.describe ParallelMatrixFormatter::SuppressionLayer do
 
   before do
     # Reset class-level state
-    described_class.class_variable_set(:@@io_preserved, false)
+    ParallelMatrixFormatter::IOManager.reset
     described_class.class_variable_set(:@@active_instance, nil)
   end
 
@@ -36,8 +36,8 @@ RSpec.describe ParallelMatrixFormatter::SuppressionLayer do
       layer = described_class.new(base_config)
       layer.suppress(level: :runner)
 
-      expect($stdout).to be_a(described_class::NullIO)
-      expect($stderr).to be_a(described_class::NullIO)
+      expect($stdout).to be_a(ParallelMatrixFormatter::NullIO)
+      expect($stderr).to be_a(ParallelMatrixFormatter::NullIO)
       expect($VERBOSE).to be_nil
     end
 
@@ -91,8 +91,8 @@ RSpec.describe ParallelMatrixFormatter::SuppressionLayer do
       layer.suppress(level: :runner)
 
       # Verify suppression is active
-      expect($stdout).to be_a(described_class::NullIO)
-      expect($stderr).to be_a(described_class::NullIO)
+      expect($stdout).to be_a(ParallelMatrixFormatter::NullIO)
+      expect($stderr).to be_a(ParallelMatrixFormatter::NullIO)
 
       layer.restore
 
@@ -108,8 +108,8 @@ RSpec.describe ParallelMatrixFormatter::SuppressionLayer do
     it 'creates and applies suppression in one call' do
       described_class.suppress_with_config(base_config, level: :runner)
 
-      expect($stdout).to be_a(described_class::NullIO)
-      expect($stderr).to be_a(described_class::NullIO)
+      expect($stdout).to be_a(ParallelMatrixFormatter::NullIO)
+      expect($stderr).to be_a(ParallelMatrixFormatter::NullIO)
     end
   end
 
@@ -127,16 +127,16 @@ RSpec.describe ParallelMatrixFormatter::SuppressionLayer do
     it 'applies complete suppression for backward compatibility' do
       described_class.suppress_runner_output(base_config)
 
-      expect($stdout).to be_a(described_class::NullIO)
-      expect($stderr).to be_a(described_class::NullIO)
+      expect($stdout).to be_a(ParallelMatrixFormatter::NullIO)
+      expect($stderr).to be_a(ParallelMatrixFormatter::NullIO)
       expect($VERBOSE).to be_nil
     end
 
     it 'works without config for backward compatibility' do
       described_class.suppress_runner_output
 
-      expect($stdout).to be_a(described_class::NullIO)
-      expect($stderr).to be_a(described_class::NullIO)
+      expect($stdout).to be_a(ParallelMatrixFormatter::NullIO)
+      expect($stderr).to be_a(ParallelMatrixFormatter::NullIO)
       expect($VERBOSE).to be_nil
     end
   end
