@@ -228,7 +228,7 @@ module ParallelMatrixFormatter
 
     def apply_runner_suppression
       # Apply role-based suppression for runner - always suppress output
-      SuppressionLayer.suppress_runner_output
+      SuppressionLayer.suppress_runner_output(@config)
     end
   end
 end

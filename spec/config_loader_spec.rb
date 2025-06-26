@@ -12,6 +12,10 @@ RSpec.describe ParallelMatrixFormatter::ConfigLoader do
         expect(config['digits']).to be_a(Hash)
         expect(config['colors']).to be_a(Hash)
         expect(config['update']).to be_a(Hash)
+        expect(config['suppression']).to be_a(Hash)
+        expect(config['suppression']['level']).to eq('auto')
+        expect(config['suppression']['no_suppress']).to be false
+        expect(config['suppression']['respect_debug']).to be false
       end
     end
 
@@ -96,6 +100,34 @@ RSpec.describe ParallelMatrixFormatter::ConfigLoader do
       ensure
         ENV['PARALLEL_WORKERS'] = old_parallel
       end
+
+      it 'processes suppression environment variables' do
+        old_no_suppress = ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS']
+        old_respect_debug = ENV['PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG']
+        
+        ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS'] = 'true'
+        ENV['PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG'] = 'true'
+        
+        config = described_class.load
+        expect(config['suppression']['no_suppress']).to be true
+        expect(config['suppression']['respect_debug']).to be true
+        
+      ensure
+        ENV['PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS'] = old_no_suppress
+        ENV['PARALLEL_MATRIX_FORMATTER_RESPECT_DEBUG'] = old_respect_debug
+      end
+
+      it 'detects debug environment for suppression control' do
+        old_debug = ENV['DEBUG']
+        
+        ENV['DEBUG'] = 'true'
+        
+        config = described_class.load
+        expect(config['suppression']['no_suppress']).to be true
+        
+      ensure
+        ENV['DEBUG'] = old_debug
+      end
     end
 
     context 'config object immutability' do
@@ -106,6 +138,7 @@ RSpec.describe ParallelMatrixFormatter::ConfigLoader do
         expect(config['environment']).to be_frozen
         expect(config['colors']).to be_frozen
         expect(config['digits']).to be_frozen
+        expect(config['suppression']).to be_frozen
       end
 
       it 'prevents modification of nested hashes' do

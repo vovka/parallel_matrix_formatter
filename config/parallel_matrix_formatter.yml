@@ -46,3 +46,15 @@ fade_effect:
   fade_levels: 5    # Number of brightness levels (1 = brightest, 5 = dimmest)
   bright_color: "bright_green"  # Color for the brightest characters
   dim_color: "green"            # Color for the dimmest characters
+
+# Suppression configuration for output control
+suppression:
+  # Suppression level: auto (role-based), none, ruby_warnings, app_warnings, 
+  # app_output, gem_output, all, runner
+  level: "auto"
+  
+  # Disable all suppression when true (useful for debugging)
+  no_suppress: false
+  
+  # Respect debug environment variables (DEBUG, VERBOSE, etc.)
+  respect_debug: false
