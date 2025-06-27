@@ -8,10 +8,12 @@ module ParallelMatrixFormatter
       @@output_suppressor.notify(output)
       test_env_number = (ENV['TEST_ENV_NUMBER'].presence || '1').to_i
       @renderer = SymbolRenderer.new(test_env_number, output)
-      @orchestrator = Orchestrator.build(test_env_number, output)
+      total_processes = ParallelSplitTest.processes
+      @orchestrator = Orchestrator.build(total_processes, test_env_number, output)
     end
 
     def start(start_notification)
+      @orchestrator.start
     end
 
     def example_started(notification)
