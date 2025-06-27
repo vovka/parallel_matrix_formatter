@@ -1,15 +1,27 @@
 # frozen_string_literal: true
 
 require_relative 'parallel_matrix_formatter/version'
-require_relative 'parallel_matrix_formatter/config_loader'
-require_relative 'parallel_matrix_formatter/suppression_layer'
+require_relative 'parallel_matrix_formatter/config'
+require_relative 'parallel_matrix_formatter/symbol_renderer'
+require_relative 'parallel_matrix_formatter/output_suppressor'
 require_relative 'parallel_matrix_formatter/orchestrator'
-require_relative 'parallel_matrix_formatter/process_formatter'
-require_relative 'parallel_matrix_formatter/digital_rain_renderer'
-require_relative 'parallel_matrix_formatter/update_strategies'
-require_relative 'parallel_matrix_formatter/ipc'
+
 require_relative 'parallel_matrix_formatter/formatter'
 
 module ParallelMatrixFormatter
-  class Error < StandardError; end
 end
+
+RSpec::Core::Formatters.register(
+  ParallelMatrixFormatter::Formatter,
+  :start,
+  :example_started,
+  :example_passed,
+  :example_failed,
+  :example_pending,
+  :dump_summary,
+  :dump_failures,
+  :dump_pending,
+  :dump_profile,
+  :stop,
+  :close
+)
