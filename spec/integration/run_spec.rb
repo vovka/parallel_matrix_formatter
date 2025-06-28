@@ -1,8 +1,21 @@
 require "spec_helper"
 require "parallel_matrix_formatter"
 require "pry-byebug"
+require "parallel_matrix_formatter/ipc/server"
 
 RSpec.describe ParallelMatrixFormatter::Formatter do
+  before(:all) do
+    @server_thread = Thread.new do
+      ParallelMatrixFormatter::Ipc::Server.new.start
+    end
+    # Give the server a moment to start up
+    sleep(0.1)
+  end
+
+  after(:all) do
+    # Terminate the server thread
+    @server_thread.kill if @server_thread && @server_thread.alive?
+  end
   let(:output) { File.open(File.expand_path("./parallel_matrix_formatter_output.txt", __dir__), "w+") }
   let(:total_examples) do
     total_processes.times.map { rand(5..10) }

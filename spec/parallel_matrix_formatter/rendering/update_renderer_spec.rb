@@ -2,10 +2,16 @@
 
 require 'spec_helper'
 require 'parallel_matrix_formatter/rendering/update_renderer'
+require 'parallel_matrix_formatter/config'
 
 RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
   let(:test_env_number) { 1 }
   subject(:renderer) { described_class.new(test_env_number) }
+
+  before do
+    # Reload config to ensure it picks up changes from the yml file
+    ParallelMatrixFormatter::Config.instance.send(:load_config)
+  end
 
   describe '#initialize' do
     it 'sets the test_env_number' do
@@ -34,6 +40,8 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
     end
 
     context 'progress_update' do
+      let(:update_interval) { ParallelMatrixFormatter::Config.instance.update_renderer_config['update_interval_seconds'] || 3 }
+
       before do
         # Set initial time for testing time-based updates
         allow(Time).to receive(:now).and_return(Time.at(0))
@@ -41,7 +49,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
 
       it 'generates a progress update string if enough time has passed' do
         renderer.update(message)
-        allow(Time).to receive(:now).and_return(Time.at(described_class::SECONDS_TO_UPDATE + 1))
+        allow(Time).to receive(:now).and_return(Time.at(update_interval + 1))
         output = renderer.update(message)
         expect(output).to include("Update is run from process 1. Progress: 1:50.0% ")
       end
@@ -49,21 +57,21 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       it 'generates a progress update string if all processes are at 100%' do
         renderer.update({ 'process_number' => 1, 'message' => { 'progress' => 1.0 } })
         renderer.update({ 'process_number' => 2, 'message' => { 'progress' => 1.0 } })
-        allow(Time).to receive(:now).and_return(Time.at(described_class::SECONDS_TO_UPDATE + 1))
+        allow(Time).to receive(:now).and_return(Time.at(update_interval + 1))
         output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 1.0 })) # Ensure no status output
         expect(output).to include("Update is run from process 1. Progress: 1:100.0%, 2:100.0% ")
       end
 
       it 'does not generate a progress update string if not enough time has passed' do
         renderer.update(message)
-        allow(Time).to receive(:now).and_return(Time.at(described_class::SECONDS_TO_UPDATE - 1))
+        allow(Time).to receive(:now).and_return(Time.at(update_interval - 1))
         output = renderer.update(message)
         expect(output).not_to include("Update is run from process")
       end
 
       it 'formats the progress correctly' do
         renderer.update(message)
-        allow(Time).to receive(:now).and_return(Time.at(described_class::SECONDS_TO_UPDATE + 1))
+        allow(Time).to receive(:now).and_return(Time.at(update_interval + 1))
         output = renderer.update(message)
         expect(output).to include("Progress: 1:50.0%")
       end
@@ -73,19 +81,19 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       it 'renders a green symbol for passed status' do
         message['message']['status'] = :passed
         output = renderer.update(message)
-        expect(output).to include("\e[32mA\e[0m") # A is (1-1 + 'A'.ord).chr
+        expect(output).to include("\e[32m✅A\e[0m") # A is (1-1 + 'A'.ord).chr
       end
 
       it 'renders a red symbol for failed status' do
         message['message']['status'] = :failed
         output = renderer.update(message)
-        expect(output).to include("\e[31mA\e[0m")
+        expect(output).to include("\e[31m❌A\e[0m")
       end
 
       it 'renders a yellow symbol for pending status' do
         message['message']['status'] = :pending
         output = renderer.update(message)
-        expect(output).to include("\e[33mA\e[0m")
+        expect(output).to include("\e[33m⏳A\e[0m")
       end
 
       it 'renders empty string if status is missing' do
@@ -100,11 +108,119 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       end
     end
 
-    it 'combines progress update and test example status' do
-      allow(Time).to receive(:now).and_return(Time.at(described_class::SECONDS_TO_UPDATE + 1))
+    it 'includes progress update in the combined output' do
+      allow(Time).to receive(:now).and_return(Time.at(ParallelMatrixFormatter::Config.instance.update_renderer_config['update_interval_seconds'] + 1))
       output = renderer.update(message)
       expect(output).to include("Update is run from process 1. Progress: 1:50.0% ")
-      expect(output).to include("\e[32mA\e[0m")
+    end
+
+    it 'includes test example status in the combined output' do
+      allow(Time).to receive(:now).and_return(Time.at(ParallelMatrixFormatter::Config.instance.update_renderer_config['update_interval_seconds'] + 1))
+      output = renderer.update(message)
+      expect(output).to include("\e[32m✅A\e[0m")
+    end
+  end
+
+  context 'with custom configuration' do
+    before do
+      allow(ParallelMatrixFormatter::Config.instance).to receive(:update_renderer_config).and_return(
+        {
+          'update_interval_seconds' => 5,
+          'progress_line_format' => "[{time}] Process {process_number} - {progress_info}",
+          'test_status_line_format' => "{status_symbol} {process_symbol} ",
+          'status_symbols' => {
+            'passed' => "✔",
+            'failed' => "✖",
+            'pending' => "..."
+          }
+        }
+      )
+      # Re-initialize renderer to pick up new config
+      @renderer = described_class.new(test_env_number)
+      allow(Time).to receive(:now).and_return(Time.at(0))
+    end
+
+    let(:message) do
+      {
+        'process_number' => 1,
+        'message' => {
+          'status' => :passed,
+          'progress' => 0.5
+        }
+      }
+    end
+
+    it 'uses the custom update interval to not update if not enough time has passed' do
+      @renderer.update(message)
+      allow(Time).to receive(:now).and_return(Time.at(4)) # Less than 5 seconds
+      output = @renderer.update(message)
+      expect(output).not_to include("Process 1 - 1:50.0%")
+    end
+
+    it 'uses the custom update interval to update if enough time has passed' do
+      @renderer.update(message)
+      allow(Time).to receive(:now).and_return(Time.at(6)) # More than 5 seconds
+      output = @renderer.update(message)
+      expect(output).to include("Process 1 - 1:50.0%")
+    end
+
+    it 'uses the custom progress line format' do
+      @renderer.update(message) # Populate @progress
+      allow(Time).to receive(:now).and_return(Time.at(6))
+      output = @renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 })) # Ensure no status output
+      expect(output).to match(/\[\d{2}:\d{2}:\d{2}\] Process 1 - 1:50.0%/)
+    end
+
+    it 'uses the custom test status line format' do
+      message['message']['status'] = :passed
+      output = @renderer.update(message)
+      expect(output).to include("\e[32m✔ A \e[0m")
+    end
+
+    it 'uses the custom status symbols for failed status' do
+      message['message']['status'] = :failed
+      output = @renderer.update(message)
+      expect(output).to include("\e[31m✖ A \e[0m")
+    end
+
+    it 'uses the custom status symbols for pending status' do
+      message['message']['status'] = :pending
+      output = @renderer.update(message)
+      expect(output).to match(/\e\[33m. A \e\[0m/) # Expect a single character
+    end
+
+    it 'randomly selects all characters from a multi-character status symbol string' do
+      allow(ParallelMatrixFormatter::Config.instance).to receive(:update_renderer_config).and_return(
+        {
+          'status_symbols' => {
+            'passed' => "ABC"
+          }
+        }
+      )
+      @renderer = described_class.new(test_env_number)
+
+      symbols_found = Set.new
+      100.times do
+        symbols_found << @renderer.send(:get_status_symbol, :passed)
+      end
+      expect(symbols_found).to include("A", "B", "C")
+    end
+
+    it 'does not select unexpected characters for multi-character status symbols' do
+      allow(ParallelMatrixFormatter::Config.instance).to receive(:update_renderer_config).and_return(
+        {
+          'status_symbols' => {
+            'passed' => "ABC"
+          }
+        }
+      )
+      @renderer = described_class.new(test_env_number)
+
+      symbols_found = Set.new
+      100.times do
+        symbols_found << @renderer.send(:get_status_symbol, :passed)
+      end
+      expect(symbols_found.size).to be <= 3 # Ensure we don't get unexpected characters
     end
   end
 end
