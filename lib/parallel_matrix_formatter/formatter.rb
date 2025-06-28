@@ -1,20 +1,25 @@
 # frozen_string_literal: true
 
+require 'rspec/core/formatters/base_formatter'
+require_relative 'output/suppressor'
+require_relative 'rendering/update_renderer'
+require_relative 'ipc/client'
+
 module ParallelMatrixFormatter
   class Formatter < RSpec::Core::Formatters::BaseFormatter
-    @@output_suppressor = ParallelMatrixFormatter::OutputSuppressor.suppress
+    @@output_suppressor = ParallelMatrixFormatter::Output::Suppressor.suppress
 
-    def initialize(output)
+    def initialize(output, test_env_number = ENV['TEST_ENV_NUMBER'])
       @@output_suppressor.notify(output)
-      @test_env_number = (ENV['TEST_ENV_NUMBER'].presence || '1').to_i
-      renderer = UpdateRenderer.new(@test_env_number)
-      total_processes = ParallelSplitTest.processes
+      @test_env_number = (test_env_number && !test_env_number.empty? ? test_env_number : '1').to_i
+      renderer = ParallelMatrixFormatter::Rendering::UpdateRenderer.new(@test_env_number)
+      total_processes = Object.const_defined?('ParallelSplitTest') ? ParallelSplitTest.processes : 1 # TODO: handle this better
       @orchestrator = Orchestrator.build(total_processes, @test_env_number, output, renderer)
 
       @total_examples = 0
       @current_example = 0
 
-      @ipc = IpcClient.new
+      @ipc = ParallelMatrixFormatter::Ipc::Client.new
     end
 
     def start(start_notification)
@@ -32,7 +37,7 @@ module ParallelMatrixFormatter
         @test_env_number,
         {
           status: :passed,
-          progress: @current_example.to_f / @total_examples
+          progress: @total_examples.zero? ? 0.0 : @current_example.to_f / @total_examples
         }
       )
     end
@@ -42,7 +47,7 @@ module ParallelMatrixFormatter
         @test_env_number,
         {
           status: :failed,
-          progress: @current_example.to_f / @total_examples
+          progress: @total_examples.zero? ? 0.0 : @current_example.to_f / @total_examples
         }
       )
     end
@@ -52,7 +57,7 @@ module ParallelMatrixFormatter
         @test_env_number,
         {
           status: :pending,
-          progress: @current_example.to_f / @total_examples
+          progress: @total_examples.zero? ? 0.0 : @current_example.to_f / @total_examples
         }
       )
     end
@@ -77,7 +82,6 @@ module ParallelMatrixFormatter
     end
 
     def close(_close_notification)
-      # @ipc.close
       @orchestrator.close
     end
   end

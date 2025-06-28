@@ -1,5 +1,8 @@
 # ParallelMatrixFormatter
 
+**NOTE: This README is currently under construction and may not fully reflect the most recent changes in the codebase.**
+
+
 A Ruby gem that provides a Matrix Digital Rain RSpec formatter for use with `parallel_split_tests`. This formatter displays real-time, orchestrated "Matrix digital rain" progress per process in the terminal using configurable visual output inspired by the Matrix movie.
 
 ## Features
@@ -8,7 +11,7 @@ A Ruby gem that provides a Matrix Digital Rain RSpec formatter for use with `par
 - **Orchestrated Parallel Output**: Single orchestrator coordinates display from multiple test processes
 - **Fully Configurable**: All symbols, colors, and update strategies loaded from YAML
 - **IPC Communication**: Robust Unix socket communication with file-based fallback for CI
-- **Output Suppression**: Strict suppression of non-formatter output
+- **Output Suppression**: Strict suppression of non-formatter output (via `Output::Suppressor`)
 - **GitHub Actions Compatible**: Designed to work in CI environments
 
 ## Installation
@@ -115,12 +118,9 @@ The formatter displays a single line per update:
 
 - **Formatter**: Main RSpec formatter entry point
 - **Orchestrator**: Coordinates output from multiple processes
-- **ProcessFormatter**: Runs in each RSpec process
-- **ConfigLoader**: Loads and validates YAML configuration
-- **DigitalRainRenderer**: Handles Matrix-style output rendering
-- **IPC**: Inter-process communication via Unix sockets
-- **SuppressionLayer**: Controls output suppression
-- **UpdateStrategies**: Pluggable update timing strategies
+- **IPC**: Inter-process communication via Unix sockets (`IPC::Client`, `IPC::Server`)
+- **Output**: Handles output suppression (`Output::Suppressor`, `Output::NullIO`)
+- **Rendering**: Handles Matrix-style output rendering (`Rendering::SymbolRenderer`, `Rendering::UpdateRenderer`)
 
 ### Communication Flow
 
@@ -132,7 +132,7 @@ The formatter displays a single line per update:
 
 ## Development
 
-After checking out the repo, run `bundle install` to install dependencies. Then, run `bundle exec rspec` to run the tests.
+After checking out the repo, run `bundle install` to install dependencies. Then, run `./bin/rspec-docker` to run the tests.
 
 ## Contributing
 

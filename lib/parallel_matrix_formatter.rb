@@ -2,10 +2,18 @@
 
 require_relative 'parallel_matrix_formatter/version'
 require_relative 'parallel_matrix_formatter/config'
-require_relative 'parallel_matrix_formatter/ipc_client'
-require_relative 'parallel_matrix_formatter/ipc_server'
-require_relative 'parallel_matrix_formatter/output_suppressor'
-require_relative 'parallel_matrix_formatter/update_renderer'
+
+# Module definitions
+require_relative 'parallel_matrix_formatter/ipc'
+require_relative 'parallel_matrix_formatter/output'
+require_relative 'parallel_matrix_formatter/rendering'
+
+# Class definitions
+require_relative 'parallel_matrix_formatter/ipc/client'
+require_relative 'parallel_matrix_formatter/ipc/server'
+require_relative 'parallel_matrix_formatter/output/null_io'
+require_relative 'parallel_matrix_formatter/output/suppressor'
+require_relative 'parallel_matrix_formatter/rendering/update_renderer'
 require_relative 'parallel_matrix_formatter/orchestrator'
 
 require_relative 'parallel_matrix_formatter/formatter'

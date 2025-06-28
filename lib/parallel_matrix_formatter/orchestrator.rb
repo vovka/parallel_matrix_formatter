@@ -1,3 +1,5 @@
+require_relative 'ipc/server'
+
 module ParallelMatrixFormatter
   class Orchestrator
     class BlankOrchestrator
@@ -16,7 +18,7 @@ module ParallelMatrixFormatter
     end
 
     def initialize(total_processes, test_env_number, output, renderer)
-      @ipc = IpcServer.new
+      @ipc = ParallelMatrixFormatter::Ipc::Server.new
       @total_processes = total_processes
       @test_env_number = test_env_number
       @output = output
@@ -29,7 +31,6 @@ module ParallelMatrixFormatter
     end
 
     def start
-      previous_line_at = nil
       Thread.new do
         @ipc.start do |message|
           update = @renderer.update(message)
@@ -38,6 +39,11 @@ module ParallelMatrixFormatter
           @output.puts "Error in IPC server: #{e.message}"
           @output.puts e.backtrace.join("\n")
         rescue StandardError => e
+          # TODO: Error messages and backtraces from the IPC server thread are being
+          # printed directly to @output, which is the RSpec output stream. This
+          # could corrupt the formatter's output, making it unreadable. It would
+          # be safer to log these errors to $stderr or a dedicated log file to
+          # keep the main output stream clean.
           @output.puts "Unexpected error in IPC server: #{e.message}"
           @output.puts e.backtrace.join("\n")
         ensure

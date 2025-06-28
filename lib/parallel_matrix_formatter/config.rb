@@ -1,3 +1,5 @@
+require 'singleton'
+
 module ParallelMatrixFormatter
   class Config
     include Singleton
