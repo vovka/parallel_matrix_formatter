@@ -28,7 +28,27 @@ colors:
   # none: disables colors
   method: "auto"
 
+# Configuration for the UpdateRenderer
+update_renderer:
+  # Symbols for test example statuses
+  status_symbols:
+    passed: "✅"
+    failed: "❌"
+    pending: "⏳"
+
+  # Format string for the progress update line
+  # Available placeholders: {time}, {process_number}, {progress_info}
+  progress_line_format: "\nUpdate is run from process {process_number}. Progress: {progress_info} "
+
+  # Format string for individual test example status lines
+  # Available placeholders: {process_symbol}, {status_symbol}
+  test_status_line_format: "{status_symbol}{process_symbol}"
+
+  # Interval in seconds for progress updates
+  update_interval_seconds: 3
+
 # Update strategies
+
 update:
   interval_seconds: 1
   percent_thresholds: [5]  # Update when any process percentage increases by 5%

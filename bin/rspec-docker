@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+docker compose run --rm dev bash -c "bundle exec rspec $@ \
+  && [ -e \"./spec/integration/parallel_matrix_formatter_output.txt\" ] && ( \
+    cat ./spec/integration/parallel_matrix_formatter_output.txt \
+    ; rm ./spec/integration/parallel_matrix_formatter_output.txt \
+  )
+"

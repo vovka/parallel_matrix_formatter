@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
 module ParallelMatrixFormatter
-  module Ipc
+  module Rendering
   end
 end

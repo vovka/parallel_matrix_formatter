@@ -34,6 +34,7 @@ Gem::Specification.new do |spec|
   # Dependencies
   spec.add_dependency 'rainbow', '~> 3.0'
   spec.add_dependency 'rspec-core', '~> 3.0'
+  # spec.add_dependency 'drb'
 
   # Development dependencies
   spec.add_development_dependency 'rake', '~> 13.0'

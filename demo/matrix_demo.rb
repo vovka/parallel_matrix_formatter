@@ -2,62 +2,48 @@
 # frozen_string_literal: true
 
 # Demo script to test the Matrix Digital Rain formatter rendering
-require_relative '../lib/parallel_matrix_formatter/config_loader'
-require_relative '../lib/parallel_matrix_formatter/digital_rain_renderer'
-
-config = ParallelMatrixFormatter::ConfigLoader.load
-renderer = ParallelMatrixFormatter::DigitalRainRenderer.new(config)
+require_relative '../lib/parallel_matrix_formatter/rendering/update_renderer'
+require_relative '../lib/parallel_matrix_formatter/rendering/symbol_renderer'
 
 puts 'Matrix Digital Rain Formatter Demo'
 puts '=' * 50
 puts
 
-# Demo time rendering
-puts 'Time Column:'
-time_column = renderer.render_time_column
-puts time_column
+# Demo UpdateRenderer
+puts 'UpdateRenderer Demo:'
+update_renderer = ParallelMatrixFormatter::Rendering::UpdateRenderer.new(1) # Process 1
+
+puts "Simulating updates for process 1:"
+update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :passed, 'progress' => 0.25 } })
+sleep(0.1)
+update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :failed, 'progress' => 0.50 } })
+sleep(0.1)
+update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :pending, 'progress' => 0.75 } })
+sleep(0.1)
+update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :passed, 'progress' => 1.0 } })
 puts
 
-# Demo process columns with different progress levels
-puts 'Process Columns:'
-[25, 50, 75, 100].each_with_index do |progress, index|
-  process_column = renderer.render_process_column(index + 1, progress, 15)
-  puts "Process #{index + 1} (#{progress}%): #{process_column}"
-end
+puts "Simulating updates for process 2:"
+update_renderer.update({ 'process_number' => 2, 'message' => { 'status' => :passed, 'progress' => 0.33 } })
+sleep(0.1)
+update_renderer.update({ 'process_number' => 2, 'message' => { 'status' => :failed, 'progress' => 0.66 } })
+sleep(0.1)
+update_renderer.update({ 'process_number' => 2, 'message' => { 'status' => :pending, 'progress' => 1.0 } })
 puts
 
-# Demo test dots
-puts 'Test Result Dots:'
-test_results = [
-  { status: :passed },
-  { status: :failed },
-  { status: :pending },
-  { status: :passed },
-  { status: :failed }
-]
-test_dots = renderer.render_test_dots(test_results)
-puts test_dots
+# Demo SymbolRenderer
+puts 'SymbolRenderer Demo:'
+symbol_renderer = ParallelMatrixFormatter::Rendering::SymbolRenderer.new(1) # Process 1
+
+puts "Passed symbol: #{symbol_renderer.render_passed}"
+puts "Failed symbol: #{symbol_renderer.render_failed}"
+puts "Pending symbol: #{symbol_renderer.render_pending}"
 puts
 
-# Demo full matrix line
-puts 'Full Matrix Line:'
-time_col = renderer.render_time_column
-process_cols = [
-  renderer.render_process_column(1, 34, 15),
-  renderer.render_process_column(2, 67, 15)
-]
-dots = renderer.render_test_dots([
-                                   { status: :passed },
-                                   { status: :failed },
-                                   { status: :pending },
-                                   { status: :passed },
-                                   { status: :passed }
-                                 ])
-matrix_line = renderer.render_matrix_line(time_col, process_cols, dots)
-puts matrix_line
+symbol_renderer_process_b = ParallelMatrixFormatter::Rendering::SymbolRenderer.new(2) # Process 2
+puts "Passed symbol (Process B): #{symbol_renderer_process_b.render_passed}"
+puts "Failed symbol (Process B): #{symbol_renderer_process_b.render_failed}"
+puts "Pending symbol (Process B): #{symbol_renderer_process_b.render_pending}"
 puts
 
-# Demo final summary
-puts 'Final Summary:'
-summary = renderer.render_final_summary(100, 5, 2, 45.5, [20.1, 25.4], 2)
-puts summary
+puts "Demo complete."
