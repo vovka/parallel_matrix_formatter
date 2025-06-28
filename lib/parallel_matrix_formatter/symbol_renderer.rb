@@ -9,24 +9,34 @@ module ParallelMatrixFormatter
       reset: "\e[0m"
     }.freeze
 
-    def initialize(test_env_number, output)
-      @output = output
+    def initialize(test_env_number)
       @symbol = (test_env_number - 1 + 'A'.ord).chr
     end
 
-    def render_passed
-      @output.print "#{COLORS[:green]}#{@symbol}#{COLORS[:reset]}"
-      @output.flush
+    def render_symbol(status)
+      case status
+      when :passed
+        render_passed
+      when :failed
+        render_failed
+      when :pending
+        render_pending
+      end
     end
 
-    def render_failed
-      @output.print "#{COLORS[:red]}#{@symbol}#{COLORS[:reset]}"
-      @output.flush
+    def render_passed(msg = nil)
+      content = msg ? "#{msg}" : @symbol
+      "#{COLORS[:green]}#{content}#{COLORS[:reset]}"
     end
 
-    def render_pending
-      @output.print "#{COLORS[:yellow]}#{@symbol}#{COLORS[:reset]}"
-      @output.flush
+    def render_failed(msg = nil)
+      content = msg ? "#{msg}" : @symbol
+      "#{COLORS[:red]}#{content}#{COLORS[:reset]}"
+    end
+
+    def render_pending(msg = nil)
+      content = msg ? "#{msg}" : @symbol
+      "#{COLORS[:yellow]}#{content}#{COLORS[:reset]}"
     end
   end
 end

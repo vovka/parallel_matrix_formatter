@@ -1,31 +1,27 @@
 module ParallelMatrixFormatter
   class Orchestrator
     class BlankOrchestrator
-      def initialize(_total_processes, _test_env_number, _output)
-        @output = _output
-      end
-
-      def puts(_message)
-        # @output.puts("Blank Orchestrator. No output will be shown.")
-      end
-
-      def start
-        # No operation for blank orchestrator
-      end
+      def initialize(*); end
+      def puts(*); end
+      def start(*);end
+      def close(*);end
     end
 
-    def self.build(total_processes, test_env_number, output)
+    def self.build(total_processes, test_env_number, output, renderer)
       if test_env_number == 1
         self
       else
         BlankOrchestrator
-      end.new(total_processes, test_env_number, output)
+      end.new(total_processes, test_env_number, output, renderer)
     end
 
-    def initialize(total_processes, test_env_number, output)
+    def initialize(total_processes, test_env_number, output, renderer)
+      @ipc = IpcServer.new
       @total_processes = total_processes
       @test_env_number = test_env_number
       @output = output
+      @renderer = renderer
+      @data = {}
     end
 
     def puts(message)
@@ -33,15 +29,25 @@ module ParallelMatrixFormatter
     end
 
     def start
+      previous_line_at = nil
       Thread.new do
-        loop do
-          sleep 3
-          @output.print "\nOrchestrator is running for test environment #{@test_env_number}/#{@total_processes}. "
+        @ipc.start do |message|
+          update = @renderer.update(message)
+          @output.print update #if update
+        rescue IOError => e
+          @output.puts "Error in IPC server: #{e.message}"
+          @output.puts e.backtrace.join("\n")
+        rescue StandardError => e
+          @output.puts "Unexpected error in IPC server: #{e.message}"
+          @output.puts e.backtrace.join("\n")
+        ensure
+          @output.flush
         end
       end
-    # rescue StandardError => e
-    #   puts "Error in orchestrator: #{e.message}"
-    #   puts e.backtrace.join("\n")
+    end
+
+    def close
+      @ipc.close
     end
   end
 end

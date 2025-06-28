@@ -6,29 +6,55 @@ module ParallelMatrixFormatter
 
     def initialize(output)
       @@output_suppressor.notify(output)
-      test_env_number = (ENV['TEST_ENV_NUMBER'].presence || '1').to_i
-      @renderer = SymbolRenderer.new(test_env_number, output)
+      @test_env_number = (ENV['TEST_ENV_NUMBER'].presence || '1').to_i
+      renderer = UpdateRenderer.new(@test_env_number)
       total_processes = ParallelSplitTest.processes
-      @orchestrator = Orchestrator.build(total_processes, test_env_number, output)
+      @orchestrator = Orchestrator.build(total_processes, @test_env_number, output, renderer)
+
+      @total_examples = 0
+      @current_example = 0
+
+      @ipc = IpcClient.new
     end
 
     def start(start_notification)
       @orchestrator.start
+
+      @total_examples = start_notification.count
     end
 
     def example_started(notification)
+      @current_example += 1
     end
 
     def example_passed(notification)
-      @renderer.render_passed
+      @ipc.notify(
+        @test_env_number,
+        {
+          status: :passed,
+          progress: @current_example.to_f / @total_examples
+        }
+      )
     end
 
     def example_failed(notification)
-      @renderer.render_failed
+      @ipc.notify(
+        @test_env_number,
+        {
+          status: :failed,
+          progress: @current_example.to_f / @total_examples
+        }
+      )
     end
 
     def example_pending(notification)
-      @renderer.render_pending
+      @ipc.notify(
+        @test_env_number,
+        {
+          status: :pending,
+          progress: @current_example.to_f / @total_examples
+        }
+      )
     end
 
     def dump_summary(_summary_notification)
@@ -51,6 +77,8 @@ module ParallelMatrixFormatter
     end
 
     def close(_close_notification)
+      # @ipc.close
+      @orchestrator.close
     end
   end
 end
