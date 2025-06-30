@@ -10,7 +10,7 @@ module ParallelMatrixFormatter
       def self.suppress
         return if @suppressed
 
-        unless Config.instance.suppress == false
+        unless ParallelMatrixFormatter::Config::Config.instance.suppress == false
           instance.suppress
           @suppressed = true
         end

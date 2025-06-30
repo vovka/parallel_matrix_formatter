@@ -1,0 +1,26 @@
+module ParallelMatrixFormatter
+  class Config
+    module Parser
+      # Parses a format string like "{v}%:^6" and returns a hash with keys :value, :width, :align
+      FORMAT_REGEX = /\{v\}%:(\^|\-|\+)?(\d+)/
+
+      def self.parse_progress_column_percentage(percentage)
+        match = percentage['format'].match(FORMAT_REGEX)
+        {
+          value: '{v}%',
+          align: match ? match[1] : '^',
+          width: match ? match[2].to_i : 10,
+          color: percentage['color'] || 'red'
+        }
+      end
+
+      def self.pad_symbol(config)
+        config.dig('progress_column', 'pad', 'symbol') || '='
+      end
+
+      def self.pad_color(config)
+        config.dig('progress_column', 'pad', 'color')
+      end
+    end
+  end
+end

@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require_relative 'parallel_matrix_formatter/version'
-require_relative 'parallel_matrix_formatter/config'
+require_relative 'parallel_matrix_formatter/config/parser'
+require_relative 'parallel_matrix_formatter/config/config'
 
 # Module definitions
 require_relative 'parallel_matrix_formatter/ipc'
@@ -13,6 +14,7 @@ require_relative 'parallel_matrix_formatter/ipc/client'
 require_relative 'parallel_matrix_formatter/ipc/server'
 require_relative 'parallel_matrix_formatter/output/null_io'
 require_relative 'parallel_matrix_formatter/output/suppressor'
+require_relative 'parallel_matrix_formatter/rendering/ansi_color'
 require_relative 'parallel_matrix_formatter/rendering/update_renderer'
 require_relative 'parallel_matrix_formatter/orchestrator'
 
