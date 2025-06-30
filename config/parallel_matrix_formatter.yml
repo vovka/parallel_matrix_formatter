@@ -34,9 +34,9 @@ update_renderer:
   # Symbols for test example statuses
   status_symbols:
     # passed: "✅"
-    passed: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
+    passed: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
     # failed: "❌"
-    failed: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
+    failed: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
     pending: "🥄"
   colors:
     fail_dot: "red"
@@ -50,8 +50,10 @@ update_renderer:
       format: "{v}%:^10"
       color: "red"
     pad:
-      symbol: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
+      symbol: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
       color: "green"
+
+  digits: "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ"
 
 #   # Format string for individual test example status lines
 #   # Available placeholders: {process_symbol}, {status_symbol}

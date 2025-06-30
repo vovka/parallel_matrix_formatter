@@ -36,16 +36,17 @@ module ParallelMatrixFormatter
 
       def build_progress_info
         cfg = @config['progress_column'] || {}
-        format_cfg = cfg['parsed'] || { align: '^', width: 6, value: '{v}%', color: 'red' }
         pad_symbol = cfg['pad_symbol'] || '='
         pad_color = cfg['pad_color']
-        @progress.sort.map { |k, v| format_progress_column(v, format_cfg, pad_symbol, pad_color) }
+        @progress.sort.map { |k, v| format_progress_column(v, pad_symbol, pad_color) }
           .then { |arr| color_progress_info(arr) }
           .join
       end
 
-      def format_progress_column(v, format_cfg, pad_symbol, pad_color)
-        value = format_cfg[:value].gsub('{v}', "#{(v * 100).round(2)}")
+      def format_progress_column(v, pad_symbol, pad_color)
+        format_cfg = @config['progress_column']['parsed'] || { align: '^', width: 6, value: '{v}%', color: 'red' }
+        value = format_cfg[:value].gsub('{v}', "#{(v * 100).round(0)}")
+
         width = format_cfg[:width] || 10
         align = format_cfg[:align] || '^'
         pad_total = [width - value.length, 0].max
@@ -60,6 +61,8 @@ module ParallelMatrixFormatter
           end
         pad_left = lpad.times.map { pad_symbol.split('').sample }.join
         pad_right = rpad.times.map { pad_symbol.split('').sample }.join
+
+        value = customize_digits(value)
 
         value = AnsiColor.send(format_cfg[:color]) { value } if format_cfg[:color] && AnsiColor.respond_to?(format_cfg[:color])
         if pad_color && AnsiColor.respond_to?(pad_color)
@@ -81,7 +84,7 @@ module ParallelMatrixFormatter
       def format_progress_line(progress_info)
         format_string = @config['progress_line_format'] || "\nUpdate is run from process {process_number}. Progress: {progress_info} "
         format_string
-          .gsub('{time}', Time.now.strftime("%H:%M:%S"))
+          .gsub('{time}', customize_digits(Time.now.strftime("%H:%M:%S")))
           .gsub('{process_number}', @test_env_number.to_s)
           .gsub('{progress_info}', progress_info)
       end
@@ -117,6 +120,16 @@ module ParallelMatrixFormatter
           else ""
           end
         end
+      end
+
+      def customize_digits(str)
+        return str unless @config['digits'].present?
+
+        digits = @config['digits'].split('')[0..9]
+        (0..9).each do |i|
+          str = str.gsub(i.to_s, digits[i]) if digits[i]
+        end
+        str
       end
     end
   end
