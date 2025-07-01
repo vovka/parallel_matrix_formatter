@@ -5,14 +5,19 @@ require_relative './null_io'
 module ParallelMatrixFormatter
   module Output
     class Suppressor
-      include Singleton
+      @@suppressed = false # Class variable
 
-      def self.suppress
-        return if @suppressed
+      def initialize(config)
+        @config = config
+      end
 
-        unless ParallelMatrixFormatter::Config::Config.instance.suppress == false
+      def self.suppress(config)
+        return if @@suppressed # Check class variable
+
+        instance = new(config)
+        if config.suppress
           instance.suppress
-          @suppressed = true
+          @@suppressed = true # Set class variable
         end
         instance
       end

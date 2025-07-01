@@ -1,0 +1,87 @@
+module ParallelMatrixFormatter
+  module Rendering
+    class UpdateRenderer
+      class ProgressUpdater
+        include ParallelMatrixFormatter::Rendering::FormatHelper
+
+        def initialize(test_env_number, progress, config)
+          @test_env_number = test_env_number
+          @progress = progress
+          @config = config
+          @previous_progress_update_at = nil
+        end
+
+        def update
+          return "" unless should_update_progress?
+          @previous_progress_update_at = Time.now
+          progress_info = build_progress_info
+          format_progress_line(progress_info)
+        end
+
+        private
+
+        def should_update_progress?
+          update_interval = @config['update_interval_seconds'] || 3
+          time_ok = @previous_progress_update_at.nil? || Time.now - @previous_progress_update_at > update_interval
+          all_complete = !@progress.empty? && @progress.values.all? { |v| v >= 1.0 }
+          (time_ok || all_complete) && !@progress.empty?
+        end
+
+        def build_progress_info
+          cfg = @config['progress_column'] || {}
+          pad_symbol = cfg['pad_symbol'] || '='
+          pad_color = cfg['pad_color']
+          @progress.sort.map { |k, v| format_progress_column(v, pad_symbol, pad_color) }
+            .then { |arr| color_progress_info(arr) }
+            .join
+        end
+
+        def format_progress_column(v, pad_symbol, pad_color)
+          format_cfg = ( @config['progress_column'] && @config['progress_column']['parsed'] ) || { 'align' => '^', 'width' => 6, 'value' => '{v}%', 'color' => 'red' }
+          value = format_cfg['value'].gsub('{v}', "#{(v * 100).round(0)}")
+
+          width = format_cfg['width'] || 10
+          align = format_cfg['align'] || '^'
+          pad_total = [width - value.length, 0].max
+          left_pad = pad_total / 2
+          right_pad = pad_total - left_pad
+          lpad, rpad = 
+            case align
+            when '^' then [left_pad, right_pad]
+            when '-' then [0, pad_total]
+            when '+' then [pad_total, 0]
+            else [left_pad, right_pad]
+            end
+          pad_left = lpad.times.map { pad_symbol.split('').sample }.join
+          pad_right = rpad.times.map { pad_symbol.split('').sample }.join
+
+          value = customize_digits(value, @config['digits'])
+
+          value = AnsiColor.send(format_cfg['color']) { value } if format_cfg['color'] && AnsiColor.respond_to?(format_cfg['color'])
+          if pad_color && AnsiColor.respond_to?(pad_color)
+            pad_left = AnsiColor.send(pad_color) { pad_left } unless pad_left.empty?
+            pad_right = AnsiColor.send(pad_color) { pad_right } unless pad_right.empty?
+          end
+          "#{pad_left}#{value}#{pad_right}"
+        end
+
+        def color_progress_info(arr)
+          color = @config.dig('colors', 'progress_info')
+          if color && AnsiColor.respond_to?(color)
+            arr.map { |info| AnsiColor.send(color) { info } }
+          else
+            arr
+          end
+        end
+
+        def format_progress_line(progress_info)
+          format_string = @config['progress_line_format'] || "\nUpdate is run from process {process_number}. Progress: {progress_info} "
+          format_string
+            .gsub('{time}', customize_digits(Time.now.strftime("%H:%M:%S"), @config['digits']))
+            .gsub('{process_number}', @test_env_number.to_s)
+            .gsub('{progress_info}', progress_info)
+        end
+      end
+    end
+  end
+end

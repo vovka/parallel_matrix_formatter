@@ -4,15 +4,15 @@ require 'rspec/core/formatters/base_formatter'
 require_relative 'output/suppressor'
 require_relative 'rendering/update_renderer'
 require_relative 'ipc/client'
+require_relative 'config/config'
 
 module ParallelMatrixFormatter
   class Formatter < RSpec::Core::Formatters::BaseFormatter
-    @@output_suppressor = ParallelMatrixFormatter::Output::Suppressor.suppress
-
-    def initialize(output, test_env_number = ENV['TEST_ENV_NUMBER'])
-      @@output_suppressor.notify(output)
+    def initialize(output, test_env_number = ENV['TEST_ENV_NUMBER'], config = ParallelMatrixFormatter::Config.new)
+      output_suppressor = ParallelMatrixFormatter::Output::Suppressor.new(config)
+      output_suppressor.notify(output)
       @test_env_number = (test_env_number && !test_env_number.empty? ? test_env_number : '1').to_i
-      renderer = ParallelMatrixFormatter::Rendering::UpdateRenderer.new(@test_env_number)
+      renderer = ParallelMatrixFormatter::Rendering::UpdateRenderer.new(@test_env_number, config.update_renderer_config)
       total_processes = Object.const_defined?('ParallelSplitTest') ? ParallelSplitTest.processes : 1 # TODO: handle this better
       @orchestrator = Orchestrator.build(total_processes, @test_env_number, output, renderer)
 

@@ -5,24 +5,27 @@ require 'parallel_matrix_formatter/formatter'
 
 RSpec.describe ParallelMatrixFormatter::Formatter do
   let(:output) { StringIO.new }
-  let(:formatter) { described_class.new(output) }
+  let(:config) { ParallelMatrixFormatter::Config.new }
+  subject(:formatter) { described_class.new(output, ENV['TEST_ENV_NUMBER'], config) }
   let(:ipc_client) { instance_double(ParallelMatrixFormatter::Ipc::Client, notify: nil, close: nil) }
   let(:orchestrator) { instance_double(ParallelMatrixFormatter::Orchestrator, start: nil, puts: nil, close: nil) }
   let(:update_renderer) { instance_double(ParallelMatrixFormatter::Rendering::UpdateRenderer) }
+  let(:output_suppressor) { instance_double(ParallelMatrixFormatter::Output::Suppressor, notify: nil) }
   let(:start_notification) { double('start_notification', count: 10) }
 
   before do
     stub_const('ParallelSplitTest', double(processes: 4))
-    allow(ParallelMatrixFormatter::Rendering::UpdateRenderer).to receive(:new).and_return(update_renderer)
+    allow(ParallelMatrixFormatter::Rendering::UpdateRenderer).to receive(:new).with(any_args).and_return(update_renderer)
     allow(ParallelMatrixFormatter::Orchestrator).to receive(:build).and_return(orchestrator)
     allow(ParallelMatrixFormatter::Ipc::Client).to receive(:new).and_return(ipc_client)
+    allow(ParallelMatrixFormatter::Output::Suppressor).to receive(:new).with(instance_of(ParallelMatrixFormatter::Config)).and_return(output_suppressor)
     ENV['TEST_ENV_NUMBER'] = '2'
   end
 
   describe '#initialize' do
     it 'initializes with the correct test environment number' do
       formatter
-      expect(ParallelMatrixFormatter::Rendering::UpdateRenderer).to have_received(:new).with(2)
+      expect(ParallelMatrixFormatter::Rendering::UpdateRenderer).to have_received(:new).with(2, config.update_renderer_config)
     end
 
     it 'builds the orchestrator with the correct arguments' do
