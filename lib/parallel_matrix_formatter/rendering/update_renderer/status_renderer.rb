@@ -1,3 +1,6 @@
+# This class is responsible for rendering the status of individual test examples.
+# It selects appropriate status symbols and applies color formatting based on the test result
+# and configured symbols.
 module ParallelMatrixFormatter
   module Rendering
     class UpdateRenderer

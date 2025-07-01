@@ -1,3 +1,5 @@
+# This module provides helper methods for formatting and customizing output strings.
+# It includes functionality for digit customization based on provided configuration.
 module ParallelMatrixFormatter
   module Rendering
     module FormatHelper

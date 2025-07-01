@@ -4,6 +4,10 @@ require_relative './null_io'
 
 module ParallelMatrixFormatter
   module Output
+    # The Suppressor class manages the suppression and restoration of standard output ($stdout).
+    # It is used to prevent unwanted output from appearing in the console during certain operations,
+    # such as test execution. It also handles RSpec warning suppression and provides a notification
+    # mechanism for Rails deprecation warnings.
     class Suppressor
       @@suppressed = false # Class variable
 

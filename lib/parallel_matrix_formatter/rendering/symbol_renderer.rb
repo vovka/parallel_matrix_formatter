@@ -2,6 +2,10 @@
 
 module ParallelMatrixFormatter
   module Rendering
+    # The SymbolRenderer class is responsible for rendering colored symbols
+    # representing the status of test examples. It uses ANSI escape codes
+    # to apply colors to a base symbol (derived from the test environment number)
+    # based on whether a test passed, failed, or is pending.
     class SymbolRenderer
       COLORS = {
         green: "\e[32m",

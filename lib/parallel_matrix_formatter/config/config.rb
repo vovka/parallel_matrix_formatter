@@ -4,6 +4,11 @@ require 'erb'
 require_relative 'parser'
 
 module ParallelMatrixFormatter
+  # The Config class is responsible for loading and parsing the configuration
+  # for the ParallelMatrixFormatter gem from `config/parallel_matrix_formatter.yml`.
+  # It provides access to various configuration settings, including suppression
+  # options and update renderer configurations, and uses `Config::Parser` to
+  # process specific configuration elements.
   class Config
     attr_accessor :suppress, :update_renderer_config
 

@@ -1,7 +1,15 @@
 require_relative 'ipc/server'
 
 module ParallelMatrixFormatter
+  # The Orchestrator class coordinates communication between different test processes
+  # and the main RSpec formatter. It acts as an IPC server, receiving updates from
+  # parallel test processes and using the `UpdateRenderer` to display real-time
+  # progress and status to the console.
   class Orchestrator
+    # The BlankOrchestrator is a no-op orchestrator used when the current process
+    # is not the primary process (i.e., `test_env_number` is not 1). It provides
+    # a null implementation of the orchestrator interface to avoid unnecessary
+    # IPC server setup and message processing in secondary processes.
     class BlankOrchestrator
       def initialize(*); end
       def puts(*); end

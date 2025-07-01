@@ -4,6 +4,9 @@ require 'json'
 
 module ParallelMatrixFormatter
   module Ipc
+    # The Client class is responsible for establishing a connection to the IPC server
+    # (via a UNIX socket) and sending messages to it. It handles connection retries
+    # and provides a `notify` method to send structured data to the server.
     class Client
       SOCKET_PATH = "/tmp/parallel_matrix_formatter.sock"
 

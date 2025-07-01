@@ -1,3 +1,6 @@
+# This class is responsible for updating and formatting the progress line displayed in the console.
+# It calculates the progress based on test execution, applies formatting rules,
+# and incorporates configuration for display elements like padding and colors.
 module ParallelMatrixFormatter
   module Rendering
     class UpdateRenderer

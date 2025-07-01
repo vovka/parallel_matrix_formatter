@@ -4,6 +4,10 @@ require 'json'
 
 module ParallelMatrixFormatter
   module Ipc
+    # The Server class implements a UNIX socket server for Inter-Process Communication (IPC).
+    # It listens for incoming messages from clients (e.g., `Ipc::Client` instances),
+    # parses them as JSON, and yields them to a provided block for processing.
+    # It handles socket creation, client connections, and proper cleanup.
     class Server
       SOCKET_PATH = "/tmp/parallel_matrix_formatter.sock"
 

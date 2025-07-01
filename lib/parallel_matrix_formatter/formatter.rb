@@ -7,6 +7,11 @@ require_relative 'ipc/client'
 require_relative 'config/config'
 
 module ParallelMatrixFormatter
+  # The Formatter class is the main RSpec formatter for the ParallelMatrixFormatter gem.
+  # It extends `RSpec::Core::Formatters::BaseFormatter` and is responsible for
+  # capturing test events (start, example_passed, example_failed, etc.) and
+  # communicating them to the `Orchestrator` via IPC. It also initializes and
+  # utilizes the `UpdateRenderer` for displaying real-time progress and status.
   class Formatter < RSpec::Core::Formatters::BaseFormatter
     def initialize(output, test_env_number = ENV['TEST_ENV_NUMBER'], config = ParallelMatrixFormatter::Config.new)
       output_suppressor = ParallelMatrixFormatter::Output::Suppressor.new(config)

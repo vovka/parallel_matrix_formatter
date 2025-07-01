@@ -1,7 +1,9 @@
 module ParallelMatrixFormatter
   class Config
     module Parser
-      # Parses a format string like "{v}%:^6" and returns a hash with keys :value, :width, :align
+      # The Parser module is responsible for parsing specific configuration strings
+      # related to the progress column formatting. It extracts details like alignment,
+      # width, and color from format strings defined in the configuration file.
       FORMAT_REGEX = /\{v\}%:(\^|\-|\+)?(\d+)/
 
       def self.parse_progress_column_percentage(percentage)
