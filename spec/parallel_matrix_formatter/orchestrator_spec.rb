@@ -60,7 +60,7 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
     end
     
     describe 'completion tracking and buffering' do
-      it 'buffers dump messages until all processes complete' do
+      it 'buffers dump messages until all processes complete in multi-process mode' do
         orchestrator.puts("\ndump_summary")
         expect(output.string).to eq("")
         
@@ -72,6 +72,14 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
         # Complete process 2 - now summary should be printed
         orchestrator.track_process_completion(2, 1.0)
         orchestrator.send(:process_buffered_messages_if_complete)
+        expect(output.string).to eq("\ndump_summary\n")
+      end
+      
+      it 'prints dump messages immediately in single process mode' do
+        single_process_orchestrator = described_class.new(1, 1, output, renderer)
+        allow(ParallelMatrixFormatter::Ipc::Server).to receive(:new).and_return(ipc_server)
+        
+        single_process_orchestrator.puts("\ndump_summary")
         expect(output.string).to eq("\ndump_summary\n")
       end
       

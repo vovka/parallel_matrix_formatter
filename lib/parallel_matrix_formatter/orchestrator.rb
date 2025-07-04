@@ -38,7 +38,7 @@ module ParallelMatrixFormatter
     end
 
     def puts(message)
-      if message&.include?("dump_")
+      if message&.include?("dump_") && @total_processes > 1
         @buffered_messages << message
         process_buffered_messages_if_complete
       else
