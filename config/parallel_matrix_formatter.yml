@@ -29,6 +29,10 @@
 #   # none: disables colors
 #   method: "auto"
 
+output_suppressor:
+  # Suppress output during formatter execution
+  suppress: true
+
 # Configuration for the UpdateRenderer
 update_renderer:
   # Symbols for test example statuses
@@ -59,8 +63,8 @@ update_renderer:
 #   # Available placeholders: {process_symbol}, {status_symbol}
   test_status_line_format: "{status_symbol}"
 
-#   # Interval in seconds for progress updates
-#   update_interval_seconds: 3
+  # Interval in seconds for progress updates
+  update_interval_seconds: 3
 
 # # Update strategies
 

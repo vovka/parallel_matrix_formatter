@@ -5,12 +5,10 @@ require 'parallel_matrix_formatter/output/suppressor'
 
 RSpec.describe ParallelMatrixFormatter::Output::Suppressor do
   let(:original_stdout) { $stdout }
-  let(:config) { ParallelMatrixFormatter::Config.new }
 
   before do
     # Reset the class variable and its state before each test
     described_class.class_variable_set(:@@suppressed, false)
-    
   end
 
   after do
@@ -18,46 +16,8 @@ RSpec.describe ParallelMatrixFormatter::Output::Suppressor do
     $stdout = original_stdout
   end
 
-  describe '.suppress' do
-    context 'when suppression is enabled in config' do
-      before do
-        allow(config).to receive(:suppress).and_return(true)
-      end
-
-      it 'calls the suppress instance method and sets suppressed to true' do
-        described_class.suppress(config)
-        expect(described_class.class_variable_get(:@@suppressed)).to be true
-        expect($stdout).to be_an_instance_of(ParallelMatrixFormatter::Output::NullIO)
-      end
-
-      it 'only suppresses once' do
-        described_class.suppress(config)
-        original_stdout_after_first_suppress = $stdout
-        described_class.suppress(config) # Call it again
-        expect(described_class.class_variable_get(:@@suppressed)).to be true # Still suppressed
-        expect($stdout).to eq(original_stdout_after_first_suppress) # $stdout should not change again
-      end
-    end
-
-    context 'when suppression is disabled in config' do
-      let(:config) { ParallelMatrixFormatter::Config.new }
-
-      before do
-        config.suppress = false
-      end
-
-      it 'does not suppress stdout' do
-        config.suppress = false
-        described_class.suppress(config)
-        expect($stdout).to eq(original_stdout)
-      end
-    end
-  end
-
   describe '#suppress' do
-    before do
-      allow(config).to receive(:suppress).and_return(true)
-    end
+    let(:config) { { "suppress" => true } }
 
     it 'replaces $stdout with a NullIO object' do
       suppressor = described_class.new(config)
@@ -73,6 +33,8 @@ RSpec.describe ParallelMatrixFormatter::Output::Suppressor do
   end
 
   describe '#restore' do
+    let(:config) { { "suppress" => true } }
+
     it 'restores the original $stdout' do
       suppressor = described_class.new(config)
       suppressor.suppress
@@ -85,11 +47,12 @@ RSpec.describe ParallelMatrixFormatter::Output::Suppressor do
     let(:output) { StringIO.new }
 
     context 'when Rails is defined and deprecations are not silenced' do
+      let(:config) { { "suppress" => true } }
+
       before do
         # Mock Rails environment
         rails_app = double('Rails.application', config: double('config', active_support: double('active_support', deprecation: :log)))
         stub_const('Rails', double('Rails', application: rails_app, respond_to?: true))
-        allow(config).to receive(:suppress).and_return(true)
       end
 
       it 'prints a warning message to the output' do
@@ -100,9 +63,7 @@ RSpec.describe ParallelMatrixFormatter::Output::Suppressor do
     end
 
     context 'when Rails is not defined' do
-      before do
-        allow(config).to receive(:suppress).and_return(true)
-      end
+      let(:config) { { "suppress" => true } }
 
       it 'does not print a message' do
         # Ensure Rails is not defined for this context

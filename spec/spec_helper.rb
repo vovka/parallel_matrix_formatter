@@ -13,10 +13,8 @@ RSpec.configure do |config|
     mocks.verify_partial_doubles = true
   end
 
-  config.before(:each) do
-    allow_any_instance_of(ParallelMatrixFormatter::Config).to receive(:update_renderer_config).and_return({})
-    allow_any_instance_of(ParallelMatrixFormatter::Config).to receive(:suppress).and_return(true)
-  end
+  # config.before(:each) do
+  # end
 
   config.shared_context_metadata_behavior = :apply_to_host_groups
   config.filter_run_when_matching :focus
