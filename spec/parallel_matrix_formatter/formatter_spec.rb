@@ -10,7 +10,7 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
   let(:ipc_client) { instance_double(ParallelMatrixFormatter::Ipc::Client, notify: nil, close: nil) }
   let(:orchestrator) { instance_double(ParallelMatrixFormatter::Orchestrator, start: nil, puts: nil, close: nil) }
   let(:update_renderer) { instance_double(ParallelMatrixFormatter::Rendering::UpdateRenderer) }
-  let(:output_suppressor) { instance_double(ParallelMatrixFormatter::Output::Suppressor, notify: nil) }
+  let(:output_suppressor) { instance_double(ParallelMatrixFormatter::Output::Suppressor, notify: nil, suppress: nil) }
   let(:start_notification) { double('start_notification', count: 10) }
 
   before do
@@ -33,9 +33,14 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
       expect(ParallelMatrixFormatter::Orchestrator).to have_received(:build).with(4, 2, output, update_renderer)
     end
 
-    it 'initializes the IPC client' do
+    it 'suppresses output immediately to prevent race conditions' do
       formatter
-      expect(ParallelMatrixFormatter::Ipc::Client).to have_received(:new)
+      expect(output_suppressor).to have_received(:suppress)
+    end
+
+    it 'does not create IPC client during initialization' do
+      formatter
+      expect(ParallelMatrixFormatter::Ipc::Client).not_to have_received(:new)
     end
   end
 
@@ -48,6 +53,10 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
     it 'sets the total examples count' do
       expect(formatter.instance_variable_get(:@total_examples)).to eq(10)
+    end
+
+    it 'creates IPC client after orchestrator is started' do
+      expect(ParallelMatrixFormatter::Ipc::Client).to have_received(:new).with(retries: 30, delay: 0.1)
     end
   end
 

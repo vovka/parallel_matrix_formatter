@@ -1,6 +1,5 @@
 require "spec_helper"
 require "parallel_matrix_formatter"
-require "pry-byebug"
 require "parallel_matrix_formatter/ipc/server"
 
 RSpec.describe ParallelMatrixFormatter::Formatter do
