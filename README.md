@@ -5,6 +5,13 @@
 
 A Ruby gem that provides a Matrix Digital Rain RSpec formatter for use with `parallel_split_tests`. This formatter displays real-time, orchestrated "Matrix digital rain" progress per process in the terminal using configurable visual output inspired by the Matrix movie.
 
+## Screenshot
+
+![Matrix Digital Rain Formatter Example](https://raw.githubusercontent.com/vovka/parallel_matrix_formatter/refs/heads/v0.1.0-claude/docs/images/matrix_digital_rain_example.png)
+
+After simple reconfiguration:
+![Matrix Digital Rain Formatter Example with Custom Config](https://raw.githubusercontent.com/vovka/parallel_matrix_formatter/refs/heads/v0.1.0-claude/docs/images/arabic_number_with_emoji.png)
+
 ## Features
 
 - **Matrix Digital Rain Display**: Real-time progress visualization with falling katakana characters

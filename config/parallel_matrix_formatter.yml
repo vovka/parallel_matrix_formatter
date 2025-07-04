@@ -48,7 +48,7 @@ update_renderer:
 
   # Format string for the progress update line
   # Available placeholders: {time}, {process_number}, {progress_info}
-  progress_line_format: "\n{time} {progress_info} {test_status_line}"
+  progress_line_format: "\n{time} {progress_info} "
   progress_column:
     percentage:
       format: "{v}%:^10"
@@ -57,7 +57,8 @@ update_renderer:
       symbol: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
       color: "green"
 
-  digits: "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ"
+  digits:
+    symbols: "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ"
 
 #   # Format string for individual test example status lines
 #   # Available placeholders: {process_symbol}, {status_symbol}

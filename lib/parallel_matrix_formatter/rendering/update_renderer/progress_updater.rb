@@ -41,37 +41,43 @@ module ParallelMatrixFormatter
 
         def format_progress_column(v, pad_symbol, pad_color)
           format_cfg = ( @config['progress_column'] && @config['progress_column']['parsed'] ) || { 'align' => '^', 'width' => 6, 'value' => '{v}%', 'color' => 'red' }
-          value = format_cfg['value'].gsub('{v}', "#{(v * 100).round(0)}")
+          value_template = format_cfg[:value] || format_cfg['value'] || '{v}%'
+          value = value_template.gsub('{v}', "#{(v * 100).round(0)}")
 
           width = format_cfg['width'] || 10
           align = format_cfg['align'] || '^'
           pad_total = [width - value.length, 0].max
           left_pad = pad_total / 2
           right_pad = pad_total - left_pad
-          lpad, rpad = 
+          lpad, rpad =
             case align
             when '^' then [left_pad, right_pad]
             when '-' then [0, pad_total]
             when '+' then [pad_total, 0]
             else [left_pad, right_pad]
             end
-          pad_left = lpad.times.map { pad_symbol.split('').sample }.join
-          pad_right = rpad.times.map { pad_symbol.split('').sample }.join
+
+          # Sample from pad_symbol characters if it's a string of characters
+          pad_chars = pad_symbol.split('')
+          pad_left = lpad.times.map { pad_chars.sample }.join
+          pad_right = rpad.times.map { pad_chars.sample }.join
 
           value = customize_digits(value, @config['digits'])
 
-          value = AnsiColor.send(format_cfg['color']) { value } if format_cfg['color'] && AnsiColor.respond_to?(format_cfg['color'])
-          if pad_color && AnsiColor.respond_to?(pad_color)
-            pad_left = AnsiColor.send(pad_color) { pad_left } unless pad_left.empty?
-            pad_right = AnsiColor.send(pad_color) { pad_right } unless pad_right.empty?
+          # Apply colors
+          color = format_cfg[:color] || format_cfg['color']
+          value = ParallelMatrixFormatter::Rendering::AnsiColor.send(color) { value } if color && ParallelMatrixFormatter::Rendering::AnsiColor.respond_to?(color)
+          if pad_color && ParallelMatrixFormatter::Rendering::AnsiColor.respond_to?(pad_color)
+            pad_left = ParallelMatrixFormatter::Rendering::AnsiColor.send(pad_color) { pad_left } unless pad_left.empty?
+            pad_right = ParallelMatrixFormatter::Rendering::AnsiColor.send(pad_color) { pad_right } unless pad_right.empty?
           end
           "#{pad_left}#{value}#{pad_right}"
         end
 
         def color_progress_info(arr)
           color = @config.dig('colors', 'progress_info')
-          if color && AnsiColor.respond_to?(color)
-            arr.map { |info| AnsiColor.send(color) { info } }
+          if color && ParallelMatrixFormatter::Rendering::AnsiColor.respond_to?(color)
+            arr.map { |info| ParallelMatrixFormatter::Rendering::AnsiColor.send(color) { info } }
           else
             arr
           end
