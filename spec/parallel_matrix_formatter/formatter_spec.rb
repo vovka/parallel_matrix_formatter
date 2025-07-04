@@ -18,14 +18,14 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
     allow(ParallelMatrixFormatter::Rendering::UpdateRenderer).to receive(:new).with(any_args).and_return(update_renderer)
     allow(ParallelMatrixFormatter::Orchestrator).to receive(:build).and_return(orchestrator)
     allow(ParallelMatrixFormatter::Ipc::Client).to receive(:new).and_return(ipc_client)
-    allow(ParallelMatrixFormatter::Output::Suppressor).to receive(:new).with(instance_of(ParallelMatrixFormatter::Config)).and_return(output_suppressor)
+    allow(ParallelMatrixFormatter::Output::Suppressor).to receive(:new).and_return(output_suppressor)
     ENV['TEST_ENV_NUMBER'] = '2'
   end
 
   describe '#initialize' do
     it 'initializes with the correct test environment number' do
       formatter
-      expect(ParallelMatrixFormatter::Rendering::UpdateRenderer).to have_received(:new).with(2, config.update_renderer_config)
+      expect(ParallelMatrixFormatter::Rendering::UpdateRenderer).to have_received(:new).with(2, config.update_renderer)
     end
 
     it 'builds the orchestrator with the correct arguments' do

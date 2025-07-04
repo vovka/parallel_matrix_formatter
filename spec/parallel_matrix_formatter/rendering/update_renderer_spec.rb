@@ -3,9 +3,6 @@
 require 'spec_helper'
 require 'parallel_matrix_formatter/rendering/update_renderer'
 
-
-
-
 RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
   let(:test_env_number) { 1 }
   let(:config) do

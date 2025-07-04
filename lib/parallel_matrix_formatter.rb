@@ -2,7 +2,8 @@
 
 require_relative 'parallel_matrix_formatter/version'
 require_relative 'parallel_matrix_formatter/config/parser'
-require_relative 'parallel_matrix_formatter/config/config'
+require_relative 'parallel_matrix_formatter/config/progress_column_parser'
+require_relative 'parallel_matrix_formatter/config'
 
 # Module definitions
 require_relative 'parallel_matrix_formatter/ipc'

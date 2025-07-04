@@ -9,30 +9,25 @@ module ParallelMatrixFormatter
     # such as test execution. It also handles RSpec warning suppression and provides a notification
     # mechanism for Rails deprecation warnings.
     class Suppressor
-      @@suppressed = false # Class variable
+      @@suppressed = false
 
       def initialize(config)
         @config = config
       end
 
-      def self.suppress(config)
-        return if @@suppressed # Check class variable
-
-        instance = new(config)
-        if config.suppress
-          instance.suppress
-          @@suppressed = true # Set class variable
-        end
-        instance
-      end
-
       def suppress
+        return if @@suppressed
+
+        return unless @config["suppress"]
+
         @original_stdout = $stdout
         $stdout = Output::NullIO.new
         # TODO: this is a specific case for RSpec, consider making it more generic,
         # maybe move to a more generic suppressor or make it configurable. Also,
         # need to ensure that RSpec is defined and loaded.
         RSpec::Support.warning_notifier = -> w { }
+
+        @@suppressed = true
       end
 
       def restore
