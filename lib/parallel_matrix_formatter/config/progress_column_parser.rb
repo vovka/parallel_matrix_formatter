@@ -6,16 +6,33 @@ class ParallelMatrixFormatter::Config
     FORMAT_REGEX = /\{v\}%:(\^|\-|\+)?(\d+)/
 
     def self.parse(raw)
+      # Parse update_renderer section if it exists
+      if raw['update_renderer']
+        parse_update_renderer_section(raw['update_renderer'])
+      end
+
+      # Also parse root level for backward compatibility
       if raw['progress_column'] && raw['progress_column']['percentage']
         raw['progress_column']['parsed'] = parse_progress_column_percentage(raw['progress_column']['percentage'])
       end
 
       if raw['progress_column'] && raw['progress_column']['pad']
-        raw['progress_column']['pad_symbol'] = pad_symbol(raw)
-        raw['progress_column']['pad_color'] = pad_color(raw)
+        raw['progress_column']['pad_symbol'] = pad_symbol_from_config(raw, 'progress_column')
+        raw['progress_column']['pad_color'] = pad_color_from_config(raw, 'progress_column')
       end
 
       raw
+    end
+
+    def self.parse_update_renderer_section(update_renderer)
+      if update_renderer['progress_column'] && update_renderer['progress_column']['percentage']
+        update_renderer['progress_column']['parsed'] = parse_progress_column_percentage(update_renderer['progress_column']['percentage'])
+      end
+
+      if update_renderer['progress_column'] && update_renderer['progress_column']['pad']
+        update_renderer['progress_column']['pad_symbol'] = pad_symbol_from_config(update_renderer, 'progress_column')
+        update_renderer['progress_column']['pad_color'] = pad_color_from_config(update_renderer, 'progress_column')
+      end
     end
 
     def self.parse_progress_column_percentage(percentage)
@@ -28,12 +45,21 @@ class ParallelMatrixFormatter::Config
       }
     end
 
+    def self.pad_symbol_from_config(config, section)
+      config.dig(section, 'pad', 'symbol') || '='
+    end
+
+    def self.pad_color_from_config(config, section)
+      config.dig(section, 'pad', 'color')
+    end
+
+    # Backward compatibility methods
     def self.pad_symbol(config)
-      config.dig('progress_column', 'pad', 'symbol') || '='
+      pad_symbol_from_config(config, 'progress_column')
     end
 
     def self.pad_color(config)
-      config.dig('progress_column', 'pad', 'color')
+      pad_color_from_config(config, 'progress_column')
     end
   end
 end
