@@ -13,8 +13,9 @@ module ParallelMatrixFormatter
     class BlankOrchestrator
       def initialize(*); end
       def puts(*); end
-      def start(*);end
-      def close(*);end
+      def start(*); end
+      def close(*); end
+      def all_processes_complete?; true; end
     end
 
     def self.build(total_processes, test_env_number, output, renderer)
@@ -32,17 +33,49 @@ module ParallelMatrixFormatter
       @output = output
       @renderer = renderer
       @data = {}
+      @buffered_messages = []
+      @process_completion = {}
     end
 
     def puts(message)
-      @output.puts(message)
+      if message&.include?("dump_")
+        @buffered_messages << message
+        process_buffered_messages_if_complete
+      else
+        @output.puts(message)
+      end
+    end
+
+    def all_processes_complete?
+      return false if @process_completion.empty?
+      expected_processes = (1..@total_processes).to_a
+      completed_processes = @process_completion.select { |_, complete| complete }.keys
+      expected_processes.all? { |process| completed_processes.include?(process) }
+    end
+
+    def process_buffered_messages_if_complete
+      return unless all_processes_complete?
+      @buffered_messages.each { |msg| @output.puts(msg) }
+      @buffered_messages.clear
+    end
+
+    def track_process_completion(process_number, progress)
+      @process_completion[process_number] = progress >= 1.0
     end
 
     def start
       Thread.new do
         @ipc.start do |message|
+          # Track process completion based on progress
+          if message && message['process_number'] && message['message'] && message['message']['progress']
+            track_process_completion(message['process_number'], message['message']['progress'])
+          end
+          
           update = @renderer.update(message)
           @output.print update #if update
+          
+          # Process any buffered messages if all processes are complete
+          process_buffered_messages_if_complete
         rescue IOError => e
           @output.puts "Error in IPC server: #{e.message}"
           @output.puts e.backtrace.join("\n")
@@ -61,7 +94,17 @@ module ParallelMatrixFormatter
     end
 
     def close
+      # Wait for all processes to complete before closing if in multi-process mode
+      wait_for_completion if @total_processes > 1
       @ipc.close
+    end
+
+    private
+
+    def wait_for_completion
+      # Wait until all processes have completed
+      # This will wait indefinitely as per requirements
+      sleep 0.1 until all_processes_complete?
     end
   end
 end
