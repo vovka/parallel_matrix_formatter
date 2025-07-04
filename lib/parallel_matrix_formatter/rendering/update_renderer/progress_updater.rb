@@ -44,8 +44,8 @@ module ParallelMatrixFormatter
           value_template = format_cfg[:value] || format_cfg['value'] || '{v}%'
           value = value_template.gsub('{v}', "#{(v * 100).round(0)}")
 
-          width = format_cfg['width'] || 10
-          align = format_cfg['align'] || '^'
+          width = format_cfg[:width] || format_cfg['width'] || 10
+          align = format_cfg[:align] || format_cfg['align'] || '^'
           pad_total = [width - value.length, 0].max
           left_pad = pad_total / 2
           right_pad = pad_total - left_pad
@@ -56,7 +56,6 @@ module ParallelMatrixFormatter
             when '+' then [pad_total, 0]
             else [left_pad, right_pad]
             end
-
           # Sample from pad_symbol characters if it's a string of characters
           pad_chars = pad_symbol.split('')
           pad_left = lpad.times.map { pad_chars.sample }.join
