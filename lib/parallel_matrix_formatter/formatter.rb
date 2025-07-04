@@ -13,8 +13,11 @@ module ParallelMatrixFormatter
   # utilizes the `UpdateRenderer` for displaying real-time progress and status.
   class Formatter < RSpec::Core::Formatters::BaseFormatter
     def initialize(output, test_env_number = ENV['TEST_ENV_NUMBER'], config = ParallelMatrixFormatter::Config.new)
+      # Suppress output immediately to prevent race condition leakage
       output_suppressor = ParallelMatrixFormatter::Output::Suppressor.new(config.output_suppressor)
+      output_suppressor.suppress
       output_suppressor.notify(output)
+      
       @test_env_number = (test_env_number && !test_env_number.empty? ? test_env_number : '1').to_i
       renderer = ParallelMatrixFormatter::Rendering::UpdateRenderer.new(@test_env_number, config.update_renderer)
       total_processes = Object.const_defined?('ParallelSplitTest') ? ParallelSplitTest.processes : 1 # TODO: handle this better
@@ -23,6 +26,7 @@ module ParallelMatrixFormatter
       @total_examples = 0
       @current_example = 0
 
+      # Create IPC client - it will wait for server to be available before proceeding
       @ipc = ParallelMatrixFormatter::Ipc::Client.new
     end
 

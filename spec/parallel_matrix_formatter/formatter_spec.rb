@@ -10,7 +10,7 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
   let(:ipc_client) { instance_double(ParallelMatrixFormatter::Ipc::Client, notify: nil, close: nil) }
   let(:orchestrator) { instance_double(ParallelMatrixFormatter::Orchestrator, start: nil, puts: nil, close: nil) }
   let(:update_renderer) { instance_double(ParallelMatrixFormatter::Rendering::UpdateRenderer) }
-  let(:output_suppressor) { instance_double(ParallelMatrixFormatter::Output::Suppressor, notify: nil) }
+  let(:output_suppressor) { instance_double(ParallelMatrixFormatter::Output::Suppressor, notify: nil, suppress: nil) }
   let(:start_notification) { double('start_notification', count: 10) }
 
   before do
@@ -36,6 +36,11 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
     it 'initializes the IPC client' do
       formatter
       expect(ParallelMatrixFormatter::Ipc::Client).to have_received(:new)
+    end
+
+    it 'suppresses output immediately to prevent race conditions' do
+      formatter
+      expect(output_suppressor).to have_received(:suppress)
     end
   end
 
