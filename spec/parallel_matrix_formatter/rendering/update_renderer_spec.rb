@@ -248,7 +248,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
         'update_interval_seconds' => 1,
         'progress_line_format' => "\n{time} {progress_info} {test_status_line}",
         'progress_column' => {
-          'parsed' => { 'align' => '^', 'width' => 10, 'value' => '{v}%', 'color' => 'red' },
+          'parsed' => { 'align' => '^', 'width' => 1000, 'value' => '{v}%', 'color' => 'red' },
           'pad_symbol' => 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､',
           'pad_color' => 'green'
         },
@@ -269,15 +269,15 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(2))
       output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 }))
-      
+
       # Extract progress info from output (space after time until space before {test_status_line})
       progress_match = output.match(/\n\S+:\S+:\S+ (.+?) \{test_status_line\}/)
       expect(progress_match).not_to be_nil
       progress_info = progress_match[1]
-      
+
       # Progress info should be exactly 10 characters wide (excluding ANSI codes)
       progress_without_ansi = progress_info.gsub(/\e\[[0-9;]*m/, '')
-      expect(progress_without_ansi.length).to eq(10)
+      expect(progress_without_ansi.length).to eq(1000)
     end
 
     it 'centers the percentage value within the 10-character column' do
@@ -285,14 +285,14 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(2))
       output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 }))
-      
+
       # Extract progress info and remove ANSI codes
       progress_match = output.match(/\n\S+:\S+:\S+ (.+?) \{test_status_line\}/)
       progress_info = progress_match[1].gsub(/\e\[[0-9;]*m/, '')
-      
+
       # Should be centered: 3 pad chars + "ﾗﾛ%" + 4 pad chars = 10 total (using custom digits)
       # For 10 width with 3-char value: left_pad = 3, right_pad = 4
-      expect(progress_info).to match(/^.{3}ﾗﾛ%.{4}$/)
+      expect(progress_info).to match(/^.{498}ﾗﾛ%.{499}$/)
     end
 
     it 'uses katakana symbols for padding' do
@@ -300,19 +300,17 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(2))
       output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.12 }))
-      
+
       # Extract progress info and remove ANSI codes
       progress_match = output.match(/\n\S+:\S+:\S+ (.+?) \{test_status_line\}/)
       progress_info = progress_match[1].gsub(/\e\[[0-9;]*m/, '')
-      
+
       # Remove the percentage to get only padding characters (using custom digits)
       padding_chars = progress_info.gsub(/ｲｸ%/, '')
       katakana_chars = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､'.split('')
-      
+
       # All padding characters should be from the katakana set
-      padding_chars.each_char do |char|
-        expect(katakana_chars).to include(char)
-      end
+      expect(padding_chars.chars - katakana_chars).to be_empty
     end
 
     it 'applies green color to padding symbols' do
@@ -320,7 +318,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(2))
       output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 }))
-      
+
       # Should contain green color codes for padding
       expect(output).to match(/\e\[32m[ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､]+\e\[0m/)
     end
@@ -330,7 +328,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(2))
       output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 }))
-      
+
       # Should contain red color codes for percentage (using custom digits)
       expect(output).to match(/\e\[31mﾗﾛ%\e\[0m/)
     end
@@ -340,7 +338,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(2))
       output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 }))
-      
+
       # Should use custom digits: 5 -> ﾗ, 0 -> ﾛ, so 50% -> ﾗﾛ%
       expect(output).to include('ﾗﾛ%')
     end

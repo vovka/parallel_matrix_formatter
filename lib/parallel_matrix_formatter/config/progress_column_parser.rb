@@ -7,20 +7,9 @@ class ParallelMatrixFormatter::Config
 
     def self.parse(raw)
       # Parse update_renderer section if it exists
-      if raw['update_renderer']
-        parse_update_renderer_section(raw['update_renderer'])
-      end
-
+      parse_update_renderer_section(raw['update_renderer'])if raw['update_renderer']
       # Also parse root level for backward compatibility
-      if raw['progress_column'] && raw['progress_column']['percentage']
-        raw['progress_column']['parsed'] = parse_progress_column_percentage(raw['progress_column']['percentage'])
-      end
-
-      if raw['progress_column'] && raw['progress_column']['pad']
-        raw['progress_column']['pad_symbol'] = pad_symbol_from_config(raw, 'progress_column')
-        raw['progress_column']['pad_color'] = pad_color_from_config(raw, 'progress_column')
-      end
-
+      parse_update_renderer_section(raw) if raw['progress_column'] && raw['progress_column']['percentage']
       raw
     end
 
