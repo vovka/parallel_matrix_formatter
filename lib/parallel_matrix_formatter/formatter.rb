@@ -26,12 +26,16 @@ module ParallelMatrixFormatter
       @total_examples = 0
       @current_example = 0
 
-      # Create IPC client - it will wait for server to be available before proceeding
-      @ipc = ParallelMatrixFormatter::Ipc::Client.new
+      # IPC client will be created in start() method to ensure server is ready
+      @ipc = nil
     end
 
     def start(start_notification)
       @orchestrator.start
+
+      # Create IPC client after orchestrator is started to ensure server is ready
+      # Use faster retry parameters for better synchronization  
+      @ipc = ParallelMatrixFormatter::Ipc::Client.new(retries: 30, delay: 0.1)
 
       @total_examples = start_notification.count
     end
@@ -41,6 +45,8 @@ module ParallelMatrixFormatter
     end
 
     def example_passed(notification)
+      return unless @ipc
+      
       @ipc.notify(
         @test_env_number,
         {
@@ -51,6 +57,8 @@ module ParallelMatrixFormatter
     end
 
     def example_failed(notification)
+      return unless @ipc
+      
       @ipc.notify(
         @test_env_number,
         {
@@ -61,6 +69,8 @@ module ParallelMatrixFormatter
     end
 
     def example_pending(notification)
+      return unless @ipc
+      
       @ipc.notify(
         @test_env_number,
         {

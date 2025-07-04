@@ -33,14 +33,14 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
       expect(ParallelMatrixFormatter::Orchestrator).to have_received(:build).with(4, 2, output, update_renderer)
     end
 
-    it 'initializes the IPC client' do
-      formatter
-      expect(ParallelMatrixFormatter::Ipc::Client).to have_received(:new)
-    end
-
     it 'suppresses output immediately to prevent race conditions' do
       formatter
       expect(output_suppressor).to have_received(:suppress)
+    end
+
+    it 'does not create IPC client during initialization' do
+      formatter
+      expect(ParallelMatrixFormatter::Ipc::Client).not_to have_received(:new)
     end
   end
 
@@ -53,6 +53,10 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
     it 'sets the total examples count' do
       expect(formatter.instance_variable_get(:@total_examples)).to eq(10)
+    end
+
+    it 'creates IPC client after orchestrator is started' do
+      expect(ParallelMatrixFormatter::Ipc::Client).to have_received(:new).with(retries: 30, delay: 0.1)
     end
   end
 
