@@ -58,7 +58,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       expect(renderer.instance_variable_get(:@progress)).to eq({ 1 => 0.5 })
     end
 
-    context 'progress_update' do
+    context 'when updating progress' do
       let(:update_interval) { config['update_interval_seconds'] || 3 }
 
       before do
@@ -96,11 +96,11 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       end
     end
 
-    context 'test_example_status' do
+    context 'when rendering test example status' do
       it 'renders a green symbol for passed status' do
         message['message']['status'] = :passed
         output = renderer.update(message)
-        expect(output).to include("\e[32m✅A\e[0m") # A is (1-1 + 'A'.ord).chr
+        expect(output).to include("\e[32m✅A\e[0m")
       end
 
       it 'renders a red symbol for failed status' do
@@ -127,20 +127,22 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       end
     end
 
-    it 'includes progress update in the combined output' do
-      allow(Time).to receive(:now).and_return(Time.at((config['update_interval_seconds'] || 3) + 1))
-      output = renderer.update(message)
-      expect(output).to include("\nUpdate is run from process 1. Progress: \e[31m=\e[31m50%\e[0m==\e[0m ")
-    end
+    context 'when generating combined output' do
+      it 'includes progress update' do
+        allow(Time).to receive(:now).and_return(Time.at((config['update_interval_seconds'] || 3) + 1))
+        output = renderer.update(message)
+        expect(output).to include("\nUpdate is run from process 1. Progress: \e[31m=\e[31m50%\e[0m==\e[0m ")
+      end
 
-    it 'includes test example status in the combined output' do
-      allow(Time).to receive(:now).and_return(Time.at((config['update_interval_seconds'] || 3) + 1))
-      output = renderer.update(message)
-      expect(output).to include("\e[32m✅A\e[0m")
+      it 'includes test example status' do
+        allow(Time).to receive(:now).and_return(Time.at((config['update_interval_seconds'] || 3) + 1))
+        output = renderer.update(message)
+        expect(output).to include("\e[32m✅A\e[0m")
+      end
     end
   end
 
-  context 'with custom configuration' do
+  context 'when configured with custom settings' do
     let(:config) do
       {
         'update_interval_seconds' => 5,
@@ -154,9 +156,9 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
       }
     end
 
+    subject(:renderer) { described_class.new(test_env_number, config) }
+
     before do
-      # Re-initialize renderer to pick up new config
-      @renderer = described_class.new(test_env_number, config)
       allow(Time).to receive(:now).and_return(Time.at(0))
     end
 
@@ -171,41 +173,41 @@ RSpec.describe ParallelMatrixFormatter::Rendering::UpdateRenderer do
     end
 
     it 'uses the custom update interval to not update if not enough time has passed' do
-      @renderer.update(message)
+      renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(4)) # Less than 5 seconds
-      output = @renderer.update(message)
+      output = renderer.update(message)
       expect(output).not_to include("Process 1 - 1:50.0%")
     end
 
     it 'uses the custom update interval to update if enough time has passed' do
-      @renderer.update(message)
+      renderer.update(message)
       allow(Time).to receive(:now).and_return(Time.at(6)) # More than 5 seconds
-      output = @renderer.update(message)
+      output = renderer.update(message)
       expect(output).to include("Process 1 - =\e[31m50%\e[0m==")
     end
 
     it 'uses the custom progress line format' do
-      @renderer.update(message) # Populate @progress
+      renderer.update(message) # Populate @progress
       allow(Time).to receive(:now).and_return(Time.at(6))
-      output = @renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 })) # Ensure no status output
+      output = renderer.update(message.merge('message' => { 'status' => nil, 'progress' => 0.5 })) # Ensure no status output
       expect(output).to match(/\[\d{2}:\d{2}:\d{2}\] Process 1 - =\e\[31m50%\e\[0m==/)
     end
 
     it 'uses the custom test status line format' do
       message['message']['status'] = :passed
-      output = @renderer.update(message)
+      output = renderer.update(message)
       expect(output).to include("\e[32m✔ A \e[0m")
     end
 
     it 'uses the custom status symbols for failed status' do
       message['message']['status'] = :failed
-      output = @renderer.update(message)
+      output = renderer.update(message)
       expect(output).to include("\e[31m✖ A \e[0m")
     end
 
     it 'uses the custom status symbols for pending status' do
       message['message']['status'] = :pending
-      output = @renderer.update(message)
+      output = renderer.update(message)
       expect(output).to match(/\e\[33m. A \e\[0m/) # Expect a single character
     end
 
