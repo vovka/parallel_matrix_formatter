@@ -39,6 +39,8 @@ module ParallelMatrixFormatter
       @data = {}
       @buffered_messages = []
       @process_completion = {}
+      @process_summaries = {}
+      @start_time = Time.now
     end
 
     def puts(message)
@@ -64,16 +66,23 @@ module ParallelMatrixFormatter
     def start
       Thread.new do
         @ipc.start do |message|
-          # Track process completion based on progress
-          if message && message['process_number'] && message['message'] && message['message']['progress']
-            track_process_completion(message['process_number'], message['message']['progress'])
+          # Handle summary messages
+          if message && message['message'] && message['message']['type'] == 'summary'
+            @process_summaries[message['process_number']] = message['message']['data']
+            # Check if all summaries are received and render consolidated summary
+            render_consolidated_summary if all_summaries_received?
+          else
+            # Track process completion based on progress
+            if message && message['process_number'] && message['message'] && message['message']['progress']
+              track_process_completion(message['process_number'], message['message']['progress'])
+            end
+
+            update = @renderer.update(message)
+            @output.print update #if update
+
+            # Process any buffered messages if all processes are complete
+            process_buffered_messages_if_complete
           end
-
-          update = @renderer.update(message)
-          @output.print update #if update
-
-          # Process any buffered messages if all processes are complete
-          process_buffered_messages_if_complete
         rescue IOError => e
           @output.puts "Error in IPC server: #{e.message}"
           @output.puts e.backtrace.join("\n")
@@ -109,6 +118,56 @@ module ParallelMatrixFormatter
       # Wait until all processes have completed
       # This will wait indefinitely as per requirements
       sleep 0.1 until all_processes_complete?
+    end
+
+    def all_summaries_received?
+      expected_processes = (1..@total_processes).to_a
+      expected_processes.all? { |process| @process_summaries.key?(process) }
+    end
+
+    def render_consolidated_summary
+      total_examples = @process_summaries.values.sum { |summary| summary['total_examples'] }
+      all_failed_examples = @process_summaries.values.flat_map { |summary| summary['failed_examples'] }
+      total_pending = @process_summaries.values.sum { |summary| summary['pending_count'] }
+      total_process_time = @process_summaries.values.sum { |summary| summary['duration'] }
+      wall_clock_time = Time.now - @start_time
+
+      @output.puts "\n"
+      
+      # Print failed examples
+      unless all_failed_examples.empty?
+        @output.puts "Failures:"
+        @output.puts
+        all_failed_examples.each_with_index do |failure, index|
+          @output.puts "  #{index + 1}) #{failure['description']}"
+          @output.puts "     #{failure['location']}" if failure['location']
+          @output.puts "     #{failure['message']}" if failure['message']
+          @output.puts "     #{failure['formatted_backtrace']}" if failure['formatted_backtrace']
+          @output.puts
+        end
+      end
+      
+      # Print statistics
+      failure_count = all_failed_examples.length
+      @output.puts format_summary_line(total_examples, failure_count, total_pending)
+      @output.puts "Finished in #{format_duration(wall_clock_time)} (files took #{format_duration(total_process_time)} to load)"
+    end
+
+    def format_summary_line(total, failures, pending)
+      parts = ["#{total} example#{'s' if total != 1}"]
+      parts << "#{failures} failure#{'s' if failures != 1}" if failures > 0
+      parts << "#{pending} pending" if pending > 0
+      parts.join(', ')
+    end
+
+    def format_duration(seconds)
+      if seconds < 60
+        "#{seconds.round(2)} seconds"
+      else
+        minutes = (seconds / 60).floor
+        remaining_seconds = seconds % 60
+        "#{minutes} minute#{'s' if minutes != 1} #{remaining_seconds.round(2)} seconds"
+      end
     end
   end
 end
