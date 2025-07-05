@@ -52,13 +52,10 @@ module ParallelMatrixFormatter
 
     def all_processes_complete?
       return false if @process_completion.empty?
+
       expected_processes = (1..@total_processes).to_a
       completed_processes = @process_completion.select { |_, complete| complete }.keys
       expected_processes.all? { |process| completed_processes.include?(process) }
-    end
-
-    def track_process_completion(process_number, progress)
-      @process_completion[process_number] = progress >= 1.0
     end
 
     def start
@@ -98,6 +95,10 @@ module ParallelMatrixFormatter
     end
 
     private
+
+    def track_process_completion(process_number, progress)
+      @process_completion[process_number] = progress >= 1.0
+    end
 
     def process_buffered_messages_if_complete
       return unless all_processes_complete?
