@@ -7,12 +7,14 @@ module ParallelMatrixFormatter
         def initialize(config)
           @config = config
           @previous_progress_update_at = nil
-          @previous_progress_update = []
+          @previous_progress_update = {}
         end
 
         def should_update?(progress)
           return true if @config['update_always']
+
           return time_based_update?(progress) if time_update_configured?
+
           return percentage_based_update?(progress) if percentage_update_configured?
         end
 
@@ -23,7 +25,7 @@ module ParallelMatrixFormatter
         end
 
         def percentage_update_configured?
-          0 < @config['update_percentage_threshold'].to_f && @config['update_percentage_threshold'].to_f < 100.0
+          0 < @config['update_percentage_threshold'].to_f && @config['update_percentage_threshold'].to_f <= 100.0
         end
 
         def time_based_update?(progress)
@@ -37,15 +39,20 @@ module ParallelMatrixFormatter
 
         def percentage_based_update?(progress)
           threshold = @config['update_percentage_threshold'].to_f / 100.0
-          @previous_progress_update ||= []
-          progress.map do |process, prgrss|
-            threshold_reached = false
-            threshold_reached = true if @previous_progress_update[process].nil?
-            threshold_reached = true if !threshold_reached && prgrss >= 1.0 && @previous_progress_update[process] < 1.0
-            threshold_reached = true if !threshold_reached && (prgrss - @previous_progress_update[process].to_f).abs >= threshold
-            @previous_progress_update[process] = prgrss if threshold_reached
-            threshold_reached
-          end.any?
+          progress.any? do |process, prgrss|
+            should_update = threshold_reached?(process, prgrss, threshold)
+            @previous_progress_update[process] = prgrss if should_update
+            should_update
+          end
+        end
+
+        def threshold_reached?(process, progress, threshold)
+          prev = @previous_progress_update[process]
+          return true if prev.nil?
+
+          return true if progress >= 1.0 && prev < 1.0
+
+          (progress - prev.to_f).abs >= threshold
         end
       end
     end
