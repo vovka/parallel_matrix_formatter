@@ -74,8 +74,16 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
     end
 
     context 'when an example fails' do
+      let(:failed_notification) do
+        double('failed_notification', 
+               description: 'example description',
+               example: double('example', location: 'spec/example_spec.rb:10'),
+               message_lines: ['Expected 1 to eq 2'],
+               formatted_backtrace: ['  spec/example_spec.rb:10:in `block`'])
+      end
+
       it 'sends a failed notification via IPC' do
-        formatter.example_failed(double)
+        formatter.example_failed(failed_notification)
         expect(ipc_client).to have_received(:notify).with(2, { status: :failed, progress: 0.1 })
       end
     end
@@ -89,9 +97,42 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
   end
 
   describe 'dump methods' do
-    it '#dump_summary sends message to orchestrator' do
-      formatter.dump_summary(double)
-      expect(orchestrator).to have_received(:puts).with("\ndump_summary")
+    let(:summary_notification) do
+      double('summary_notification', 
+             example_count: 10,
+             duration: 2.5)
+    end
+
+    before do
+      formatter.start(start_notification)
+    end
+
+    it '#dump_summary sends summary data via IPC' do
+      # Simulate a failed example first
+      failed_notification = double('failed_notification', 
+                                   description: 'example description',
+                                   example: double('example', location: 'spec/example_spec.rb:10'),
+                                   message_lines: ['Expected 1 to eq 2'],
+                                   formatted_backtrace: ['  spec/example_spec.rb:10:in `block`'])
+      formatter.example_failed(failed_notification)
+      
+      # Check the summary message
+      formatter.dump_summary(summary_notification)
+      
+      expect(ipc_client).to have_received(:notify).with(2, hash_including(
+        type: :summary,
+        data: hash_including(
+          total_examples: 10,
+          failed_examples: array_including(
+            hash_including(
+              description: 'example description',
+              location: 'spec/example_spec.rb:10'
+            )
+          ),
+          pending_count: 0,
+          process_number: 2
+        )
+      ))
     end
 
     it '#dump_failures sends message to orchestrator' do

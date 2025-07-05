@@ -1,0 +1,34 @@
+
+ｲｸ:ﾖﾇ:ﾗﾖ [31m[32mﾒｲｽ[0m[31mｲﾇ%[0m[32mｫｧﾕﾜ[0m[0m [31mｹ[0m[31mｻ[0m[33m🥄[0m[31mｱ[0m
+ｲｸ:ﾖﾇ:ﾗﾇ [31m[32mｰﾂﾚ[0m[31mﾒﾖ%[0m[32mｼﾘｯﾝ[0m[0m [31mｬ[0m
+ｲｸ:ﾖﾇ:ﾗﾒ [31m[32mﾍｦﾂ[0m[31mｲﾛﾛ%[0m[32mﾘｺﾎ[0m[0m [33m🥄[0m
+dump_profile
+
+dump_pending
+
+dump_failures
+
+Failures:
+
+  1) Unknown example
+     Unknown location
+     No message
+     No backtrace
+
+  2) Unknown example
+     Unknown location
+     No message
+     No backtrace
+
+  3) Unknown example
+     Unknown location
+     No message
+     No backtrace
+
+  4) Unknown example
+     Unknown location
+     No message
+     No backtrace
+
+6 examples, 4 failures, 2 pending
+Finished in 6.0 seconds (files took 6.0 seconds to load)

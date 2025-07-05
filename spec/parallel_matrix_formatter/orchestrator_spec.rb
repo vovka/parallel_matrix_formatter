@@ -169,5 +169,98 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
         end
       end
     end
+
+    describe 'summary message handling' do
+      let(:multi_process_orchestrator) { described_class.new(2, 1, output, renderer) }
+      let(:summary_message_1) do
+        {
+          'process_number' => 1,
+          'message' => {
+            'type' => 'summary',
+            'data' => {
+              'total_examples' => 5,
+              'failed_examples' => [
+                {
+                  'description' => 'fails test 1',
+                  'location' => 'spec/test_spec.rb:10',
+                  'message' => 'Expected true to be false',
+                  'formatted_backtrace' => 'spec/test_spec.rb:10:in `block`'
+                }
+              ],
+              'pending_count' => 1,
+              'duration' => 1.5,
+              'process_number' => 1
+            }
+          }
+        }
+      end
+      let(:summary_message_2) do
+        {
+          'process_number' => 2,
+          'message' => {
+            'type' => 'summary',
+            'data' => {
+              'total_examples' => 3,
+              'failed_examples' => [
+                {
+                  'description' => 'fails test 2',
+                  'location' => 'spec/test2_spec.rb:20',
+                  'message' => 'Expected 1 to equal 2',
+                  'formatted_backtrace' => 'spec/test2_spec.rb:20:in `block`'
+                }
+              ],
+              'pending_count' => 0,
+              'duration' => 2.0,
+              'process_number' => 2
+            }
+          }
+        }
+      end
+
+      before do
+        allow(Thread).to receive(:new) { |&block| block.call }
+        allow(ipc_server).to receive(:start) do |&block|
+          block.call(summary_message_1)
+          block.call(summary_message_2)
+        end
+        allow(output).to receive(:puts)
+        allow(output).to receive(:print)
+        allow(output).to receive(:flush)
+      end
+
+      it 'collects and renders consolidated summary when all processes report' do
+        multi_process_orchestrator.start
+        
+        expect(output).to have_received(:puts).with("\n")
+        expect(output).to have_received(:puts).with("Failures:")
+        expect(output).to have_received(:puts).with(no_args).at_least(1).times
+        expect(output).to have_received(:puts).with("  1) fails test 1")
+        expect(output).to have_received(:puts).with("     spec/test_spec.rb:10")
+        expect(output).to have_received(:puts).with("     Expected true to be false")
+        expect(output).to have_received(:puts).with("  2) fails test 2")
+        expect(output).to have_received(:puts).with("     spec/test2_spec.rb:20")
+        expect(output).to have_received(:puts).with("     Expected 1 to equal 2")
+        expect(output).to have_received(:puts).with("8 examples, 2 failures, 1 pending")
+        expect(output).to have_received(:puts).with(/Finished in .* seconds/)
+      end
+      
+      it 'handles missing summaries gracefully' do
+        # Create a new orchestrator with short timeout
+        timeout_orchestrator = described_class.new(2, 1, output, renderer)
+        timeout_orchestrator.instance_variable_set(:@summary_timeout, 0.1) # Very short timeout for testing
+        
+        # Mock the process completion to simulate all processes done
+        timeout_orchestrator.instance_variable_set(:@process_completion, {1 => true, 2 => true})
+        
+        # Only provide summary from process 1
+        timeout_orchestrator.instance_variable_set(:@process_summaries, {1 => summary_message_1['message']['data']})
+        
+        allow(output).to receive(:puts)
+        
+        timeout_orchestrator.send(:wait_for_summaries)
+        
+        expect(output).to have_received(:puts).with(/Warning: Did not receive summaries from process/)
+      end
+    end
   end
 end
