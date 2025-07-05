@@ -11,7 +11,7 @@ module ParallelMatrixFormatter
           @test_env_number = test_env_number
           @progress = progress
           @config = config
-          @policy ||= ProgressUpdatePolicy.new(@config)
+          @policy = ProgressUpdatePolicy.new(@config)
         end
 
         def update
