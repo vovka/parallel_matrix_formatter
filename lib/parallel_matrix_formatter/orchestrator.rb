@@ -18,6 +18,8 @@ module ParallelMatrixFormatter
       def all_processes_complete?; true; end
     end
 
+    DUMP_PREFIX = "dump_"
+
     def self.build(total_processes, test_env_number, output, renderer)
       if test_env_number == 1
         self
@@ -25,6 +27,8 @@ module ParallelMatrixFormatter
         BlankOrchestrator
       end.new(total_processes, test_env_number, output, renderer)
     end
+
+    attr_reader :total_processes
 
     def initialize(total_processes, test_env_number, output, renderer)
       @ipc = ParallelMatrixFormatter::Ipc::Server.new
@@ -38,7 +42,7 @@ module ParallelMatrixFormatter
     end
 
     def puts(message)
-      if message&.include?("dump_") && @total_processes > 1
+      if message&.include?(DUMP_PREFIX) && @total_processes > 1
         @buffered_messages << message
         process_buffered_messages_if_complete
       else
@@ -53,12 +57,6 @@ module ParallelMatrixFormatter
       expected_processes.all? { |process| completed_processes.include?(process) }
     end
 
-    def process_buffered_messages_if_complete
-      return unless all_processes_complete?
-      @buffered_messages.each { |msg| @output.puts(msg) }
-      @buffered_messages.clear
-    end
-
     def track_process_completion(process_number, progress)
       @process_completion[process_number] = progress >= 1.0
     end
@@ -70,10 +68,10 @@ module ParallelMatrixFormatter
           if message && message['process_number'] && message['message'] && message['message']['progress']
             track_process_completion(message['process_number'], message['message']['progress'])
           end
-          
+
           update = @renderer.update(message)
           @output.print update #if update
-          
+
           # Process any buffered messages if all processes are complete
           process_buffered_messages_if_complete
         rescue IOError => e
@@ -100,6 +98,12 @@ module ParallelMatrixFormatter
     end
 
     private
+
+    def process_buffered_messages_if_complete
+      return unless all_processes_complete?
+      @buffered_messages.each { |msg| @output.puts(msg) }
+      @buffered_messages.clear
+    end
 
     def wait_for_completion
       # Wait until all processes have completed
