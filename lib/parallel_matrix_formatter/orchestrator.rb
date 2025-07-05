@@ -61,10 +61,6 @@ module ParallelMatrixFormatter
       expected_processes.all? { |process| completed_processes.include?(process) }
     end
 
-    def track_process_completion(process_number, progress)
-      @process_completion[process_number] = progress >= 1.0
-    end
-
     def start
       Thread.new do
         @ipc.start do |message|
@@ -113,6 +109,10 @@ module ParallelMatrixFormatter
     end
 
     private
+
+    def track_process_completion(process_number, progress)
+      @process_completion[process_number] = progress >= 1.0
+    end
 
     def process_buffered_messages_if_complete
       return unless all_processes_complete?

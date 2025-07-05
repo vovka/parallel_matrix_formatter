@@ -42,6 +42,7 @@ update_renderer:
     # failed: "❌"
     failed: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
     pending: "🥄"
+    # pending: "😴"
   colors:
     fail_dot: "red"
     progress_info: "red"
@@ -55,17 +56,25 @@ update_renderer:
       color: "red"
     pad:
       symbol: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
+      # symbol: " "
       color: "green"
 
-  digits:
-    symbols: "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ"
+  # digits:
+  #   symbols: "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ"
+
+  # New
+  chars_replacement:
+    ":": "ﾆ"
+    "%": "ﾊﾟﾝ､ｯ､"
 
 #   # Format string for individual test example status lines
 #   # Available placeholders: {process_symbol}, {status_symbol}
   test_status_line_format: "{status_symbol}"
 
   # Interval in seconds for progress updates
-  update_interval_seconds: 3
+  # update_interval_seconds: 10
+  update_percentage_threshold: 10 # Update when any process percentage increases by N%
+  # update_always: true  # Always update progress, ignoring the interval and percentage threshold
 
 # # Update strategies
 

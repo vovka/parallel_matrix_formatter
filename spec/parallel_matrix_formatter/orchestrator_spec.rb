@@ -51,7 +51,7 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
         let(:multi_process_orchestrator) { described_class.new(2, 1, output, renderer) }
         it 'closes the IPC server after all processes complete' do
           (1..multi_process_orchestrator.total_processes).each do |i|
-            multi_process_orchestrator.track_process_completion(i, 1.0)
+            multi_process_orchestrator.send(:track_process_completion, i, 1.0)
           end
           multi_process_orchestrator.close
           expect(ipc_server).to have_received(:close)
@@ -72,12 +72,12 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
         expect(output.string).to eq("")
 
         # Complete process 1
-        orchestrator.track_process_completion(1, 1.0)
+        orchestrator.send(:track_process_completion, 1, 1.0)
         orchestrator.send(:process_buffered_messages_if_complete)
         expect(output.string).to eq("")
 
         # Complete process 2 - now summary should be printed
-        orchestrator.track_process_completion(2, 1.0)
+        orchestrator.send(:track_process_completion, 2, 1.0)
         orchestrator.send(:process_buffered_messages_if_complete)
         expect(output.string).to eq("\ndump_summary\n")
       end
