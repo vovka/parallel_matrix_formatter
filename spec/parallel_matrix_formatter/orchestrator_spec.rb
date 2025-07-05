@@ -47,9 +47,71 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
     end
 
     describe '#close' do
-      it 'closes the IPC server' do
-        orchestrator.close
-        expect(ipc_server).to have_received(:close)
+      context 'when using a multi-process orchestrator' do
+        let(:multi_process_orchestrator) { described_class.new(2, 1, output, renderer) }
+        it 'closes the IPC server after all processes complete' do
+          (1..multi_process_orchestrator.total_processes).each do |i|
+            multi_process_orchestrator.track_process_completion(i, 1.0)
+          end
+          multi_process_orchestrator.close
+          expect(ipc_server).to have_received(:close)
+        end
+      end
+      context 'when using a single-process orchestrator' do
+        let(:single_process_orchestrator) { described_class.new(1, 1, output, renderer) }
+        it 'closes the IPC server without additional process tracking' do
+          single_process_orchestrator.close
+          expect(ipc_server).to have_received(:close)
+        end
+      end
+    end
+
+    describe 'completion tracking and buffering' do
+      it 'buffers dump messages until all processes complete in multi-process mode' do
+        orchestrator.puts("\ndump_summary")
+        expect(output.string).to eq("")
+
+        # Complete process 1
+        orchestrator.track_process_completion(1, 1.0)
+        orchestrator.send(:process_buffered_messages_if_complete)
+        expect(output.string).to eq("")
+
+        # Complete process 2 - now summary should be printed
+        orchestrator.track_process_completion(2, 1.0)
+        orchestrator.send(:process_buffered_messages_if_complete)
+        expect(output.string).to eq("\ndump_summary\n")
+      end
+
+      it 'prints dump messages immediately in single process mode' do
+        single_process_orchestrator = described_class.new(1, 1, output, renderer)
+        allow(ParallelMatrixFormatter::Ipc::Server).to receive(:new).and_return(ipc_server)
+
+        single_process_orchestrator.puts("\ndump_summary")
+        expect(output.string).to eq("\ndump_summary\n")
+      end
+
+      it 'processes messages when completion is tracked via start method' do
+        messages = []
+        # Mock the IPC start method to simulate message reception
+        allow(ipc_server).to receive(:start) do |&block|
+          messages << { 'process_number' => 1, 'message' => { 'progress' => 0.5 } }
+          messages << { 'process_number' => 2, 'message' => { 'progress' => 0.8 } }
+          messages << { 'process_number' => 1, 'message' => { 'progress' => 1.0 } }
+          messages << { 'process_number' => 2, 'message' => { 'progress' => 1.0 } }
+          messages.each { |msg| block.call(msg) }
+        end
+
+        # Mock Thread.new to execute synchronously
+        allow(Thread).to receive(:new) { |&block| block.call }
+
+        # Start the orchestrator
+        orchestrator.start
+
+        # Buffer a dump message
+        orchestrator.puts("\ndump_summary")
+
+        # The message should be in the output because all processes completed
+        expect(output.string).to include("dump_summary")
       end
     end
 
