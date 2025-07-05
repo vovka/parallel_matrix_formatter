@@ -1,7 +1,3 @@
-require_relative 'update_renderer/format_helper'
-require_relative 'update_renderer/progress_updater'
-require_relative 'update_renderer/status_renderer'
-
 # This class orchestrates the rendering of real-time updates during test execution.
 # It combines progress information and individual test example statuses into a coherent output,
 # leveraging `ProgressUpdater` and `StatusRenderer` for specialized rendering tasks.

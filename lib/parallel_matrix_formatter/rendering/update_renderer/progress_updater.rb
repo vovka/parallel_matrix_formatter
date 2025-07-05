@@ -11,24 +11,17 @@ module ParallelMatrixFormatter
           @test_env_number = test_env_number
           @progress = progress
           @config = config
-          @previous_progress_update_at = nil
+          @policy ||= ProgressUpdatePolicy.new(@config)
         end
 
         def update
-          return "" unless should_update_progress?
-          @previous_progress_update_at = Time.now
+          return "" unless @policy.should_update?(@progress)
+
           progress_info = build_progress_info
           format_progress_line(progress_info)
         end
 
         private
-
-        def should_update_progress?
-          update_interval = @config['update_interval_seconds'] || 3
-          time_ok = @previous_progress_update_at.nil? || Time.now - @previous_progress_update_at > update_interval
-          all_complete = !@progress.empty? && @progress.values.all? { |v| v >= 1.0 }
-          (time_ok || all_complete) && !@progress.empty?
-        end
 
         def build_progress_info
           cfg = @config['progress_column'] || {}
