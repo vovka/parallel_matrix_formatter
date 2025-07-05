@@ -1,6 +1,8 @@
 
-ｲｸ:ｸﾛ:ﾗﾑ [31m[32mﾘﾙﾒ[0m[31mｲﾇ%[0m[32mﾜﾐｸﾛ[0m[0m [32mﾇ[0m[32mｶ[0m[32mﾆ[0m[32mｸ[0m[31mｱ[0m[31mﾙ[0m[32mﾕ[0m[32mｨ[0m[31mｧ[0m[31m｣[0m
-ｲｸ:ｸﾛ:ﾗﾇ [31m[32mﾊﾇﾎ[0m[31mﾚﾇ%[0m[32mﾅｫﾓﾕ[0m[0m[31m[32mｮﾔﾒ[0m[31mﾑﾑ%[0m[32mﾉｨﾅｲ[0m[0m[31m[32mﾍｵｬ[0m[31mﾖﾒ%[0m[32mｰﾕｩﾔ[0m[0m [31mｺ[0m[32mｬ[0m[31mﾗ[0m[32mｯ[0m[32mﾇ[0m[31mﾁ[0m[31mｳ[0m[31mｽ[0m
+ｲｸ:ｸﾒ:ﾖﾇ [31m[32mｬﾍｲ[0m[31mｲﾛ%[0m[32mｯ､ｳﾈ[0m[0m [33m🥄[0m[32mﾙ[0m[33m🥄[0m[31mﾊ[0m[32mﾌ[0m[31mﾑ[0m[32mｰ[0m
+ｲｸ:ｸﾒ:ﾑﾛ [31m[32mﾚﾐｶ[0m[31mﾑﾛ%[0m[32mｦｷﾇｧ[0m[0m[31m[32mｳﾋｦ[0m[31mﾗﾇ%[0m[32mﾝｹﾗｧ[0m[0m [31mﾐ[0m[31mｱ[0m[32mﾊ[0m[33m🥄[0m[31mｿ[0m[33m🥄[0m
+ｲｸ:ｸﾒ:ﾑﾖ [31m[32mｽﾗｹ[0m[31mﾇﾛ%[0m[32mﾓﾑｩﾖ[0m[0m[31m[32mｿｩｱ[0m[31mｲﾛﾛ%[0m[32mｦｫﾓ[0m[0m [32m｣[0m[31mｴ[0m[32mﾕ[0m
+ｲｸ:ｸﾒ:ﾑﾚ [31m[32mﾁﾄｽ[0m[31mｲﾛﾛ%[0m[32mｱﾀﾎ[0m[0m[31m[32mﾀｽｨ[0m[31mｲﾛﾛ%[0m[32mｭﾁｺ[0m[0m [33m🥄[0m
 dump_profile
 
 dump_pending
@@ -24,28 +26,6 @@ Failures:
      No message
      No backtrace
 
-6 examples, 3 failures
-Finished in 6.0 seconds (files took 6.0 seconds to load)
-
-ｲｸ:ｸｲ:ﾛﾛ [31m[32mﾛﾏﾑ[0m[31mｲﾛﾛ%[0m[32mｰｴｱ[0m[0m[31m[32m､ｪｺ[0m[31mﾇﾒ%[0m[32mｴｷｩﾂ[0m[0m[31m[32mｰﾗｩ[0m[31mﾇﾗ%[0m[32mﾖｲｽｲ[0m[0m [33m🥄[0m[31mﾊ[0m[33m🥄[0m[33m🥄[0m
-ｲｸ:ｸｲ:ﾛｸ [31m[32mﾂﾅﾖ[0m[31mｲﾛﾛ%[0m[32mｩｫｹ[0m[0m[31m[32mｪｨﾒ[0m[31mｲﾛﾛ%[0m[32mｧﾔﾊ[0m[0m[31m[32mｾﾇﾌ[0m[31mｲﾛﾛ%[0m[32m｢ﾓｮ[0m[0m [31mｻ[0m
-Failures:
-
-  1) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  2) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  3) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
   4) Unknown example
      Unknown location
      No message
@@ -61,70 +41,5 @@ Failures:
      No message
      No backtrace
 
-  7) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-14 examples, 7 failures, 1 pending
-Finished in 8.0 seconds (files took 14.0 seconds to load)
-
-Failures:
-
-  1) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  2) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  3) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  4) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  5) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  6) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  7) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  8) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  9) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  10) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-  11) Unknown example
-     Unknown location
-     No message
-     No backtrace
-
-23 examples, 11 failures, 3 pending
-Finished in 9.0 seconds (files took 23.01 seconds to load)
+17 examples, 6 failures, 5 pending
+Finished in 10.0 seconds (files took 17.11 seconds to load)

@@ -41,6 +41,7 @@ module ParallelMatrixFormatter
       @process_completion = {}
       @process_summaries = {}
       @start_time = Time.now
+      @summary_timeout = 30.0 # 30 seconds timeout for summary collection
     end
 
     def puts(message)
@@ -102,7 +103,11 @@ module ParallelMatrixFormatter
 
     def close
       # Wait for all processes to complete before closing if in multi-process mode
-      wait_for_completion if @total_processes > 1
+      if @total_processes > 1
+        wait_for_completion
+        # Wait for summaries with timeout
+        wait_for_summaries
+      end
       @ipc.close
     end
 
@@ -123,6 +128,22 @@ module ParallelMatrixFormatter
     def all_summaries_received?
       expected_processes = (1..@total_processes).to_a
       expected_processes.all? { |process| @process_summaries.key?(process) }
+    end
+
+    def wait_for_summaries
+      start_time = Time.now
+      while !all_summaries_received? && (Time.now - start_time) < @summary_timeout
+        sleep 0.1
+      end
+      
+      if all_summaries_received?
+        render_consolidated_summary
+      else
+        # Handle timeout or missing summaries
+        missing_processes = (1..@total_processes).to_a - @process_summaries.keys
+        @output.puts "\nWarning: Did not receive summaries from process(es): #{missing_processes.join(', ')}"
+        render_consolidated_summary if @process_summaries.any?
+      end
     end
 
     def render_consolidated_summary

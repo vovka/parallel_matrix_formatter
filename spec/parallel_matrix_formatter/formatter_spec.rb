@@ -108,8 +108,31 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
     end
 
     it '#dump_summary sends summary data via IPC' do
+      # Simulate a failed example first
+      failed_notification = double('failed_notification', 
+                                   description: 'example description',
+                                   example: double('example', location: 'spec/example_spec.rb:10'),
+                                   message_lines: ['Expected 1 to eq 2'],
+                                   formatted_backtrace: ['  spec/example_spec.rb:10:in `block`'])
+      formatter.example_failed(failed_notification)
+      
+      # Check the summary message
       formatter.dump_summary(summary_notification)
-      expect(ipc_client).to have_received(:notify).with(2, hash_including(type: :summary))
+      
+      expect(ipc_client).to have_received(:notify).with(2, hash_including(
+        type: :summary,
+        data: hash_including(
+          total_examples: 10,
+          failed_examples: array_including(
+            hash_including(
+              description: 'example description',
+              location: 'spec/example_spec.rb:10'
+            )
+          ),
+          pending_count: 0,
+          process_number: 2
+        )
+      ))
     end
 
     it '#dump_failures sends message to orchestrator' do
