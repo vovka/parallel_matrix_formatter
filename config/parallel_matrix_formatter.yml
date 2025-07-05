@@ -72,8 +72,8 @@ update_renderer:
   test_status_line_format: "{status_symbol}"
 
   # Interval in seconds for progress updates
-  # update_interval_seconds: 10
-  update_percentage_threshold: 10 # Update when any process percentage increases by N%
+  update_interval_seconds: 60
+  # update_percentage_threshold: 10 # Update when any process percentage increases by N%
   # update_always: true  # Always update progress, ignoring the interval and percentage threshold
 
 # # Update strategies
