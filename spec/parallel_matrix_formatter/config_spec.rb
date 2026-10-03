@@ -5,7 +5,7 @@ require 'tempfile'
 require 'tmpdir'
 
 RSpec.describe ParallelMatrixFormatter::Config do
-  let(:defaults) { YAML.safe_load(File.read(described_class::DEFAULTS_PATH)) }
+  let(:defaults) { YAML.safe_load_file(described_class::DEFAULTS_PATH) }
 
   def write_yaml(content)
     file = Tempfile.new(['config', '.yml'])
@@ -62,7 +62,7 @@ RSpec.describe ParallelMatrixFormatter::Config do
     end
 
     context 'when PARALLEL_MATRIX_FORMATTER_CONFIG is not set' do
-      before { stub_const('ENV', ENV.to_h.reject { |key, _| key == 'PARALLEL_MATRIX_FORMATTER_CONFIG' }) }
+      before { stub_const('ENV', ENV.to_h.except('PARALLEL_MATRIX_FORMATTER_CONFIG')) }
 
       it 'returns nil without a project file in the working directory' do
         Dir.mktmpdir { |dir| Dir.chdir(dir) { expect(described_class.project_path).to be_nil } }

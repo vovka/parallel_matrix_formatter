@@ -21,7 +21,7 @@ module ParallelMatrixFormatter
     end
 
     def read(path)
-      YAML.safe_load(File.read(path)) || {}
+      YAML.safe_load_file(path) || {}
     end
 
     def deep_merge(base, overrides)

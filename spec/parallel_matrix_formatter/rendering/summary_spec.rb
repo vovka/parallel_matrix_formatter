@@ -86,7 +86,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::Summary do
       end
 
       it 'colors the totals yellow' do
-        stub_const('ENV', ENV.to_h.reject { |key, _| key == 'NO_COLOR' })
+        stub_const('ENV', ENV.to_h.except('NO_COLOR'))
         expect(output).to include("\e[33m2 examples, 0 failures, 2 pending\e[0m")
       end
     end

@@ -3,7 +3,7 @@
 RSpec.describe ParallelMatrixFormatter::Rendering::ExampleStatus do
   subject(:status) { described_class.new(config) }
 
-  before { stub_const('ENV', ENV.to_h.reject { |key, _| key == 'NO_COLOR' }) }
+  before { stub_const('ENV', ENV.to_h.except('NO_COLOR')) }
 
   let(:config) do
     { 'format' => '{symbol}',

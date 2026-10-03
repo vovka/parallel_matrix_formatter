@@ -62,7 +62,7 @@ RSpec.describe ParallelMatrixFormatter::Rendering::ProgressColumn do
     end
 
     context 'when colors are configured' do
-      before { stub_const('ENV', ENV.to_h.reject { |key, _| key == 'NO_COLOR' }) }
+      before { stub_const('ENV', ENV.to_h.except('NO_COLOR')) }
 
       let(:config) { super().merge('color' => 'red', 'pad_color' => 'green') }
 

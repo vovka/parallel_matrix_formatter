@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe ParallelMatrixFormatter::Rendering::Colors do
-  before { stub_const('ENV', ENV.to_h.reject { |key, _| key == 'NO_COLOR' }) }
+  before { stub_const('ENV', ENV.to_h.except('NO_COLOR')) }
 
   describe '.wrap' do
     it 'wraps the text in the ANSI code of a named color' do
