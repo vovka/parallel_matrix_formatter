@@ -6,6 +6,7 @@
 # before anything else to silence it:
 #
 #   RUBYOPT="-rparallel_matrix_formatter/silence" bundle exec parallel_split_test ...
+#   RUBYOPT="-rparallel_matrix_formatter/silence" bundle exec parallel_rspec ...
 require_relative 'config'
 require_relative 'output/silencer'
 

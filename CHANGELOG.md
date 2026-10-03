@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Support for [`parallel_tests`](https://github.com/grosser/parallel_tests) (`parallel_rspec`) next to
+  `parallel_split_test`. The formatter detects the runner and takes the number of processes and the identity of
+  the run from it; the README lists the `parallel_rspec` options that are not supported.
+
+### Changed
+- The orchestrator waits for the processes that actually connected instead of trusting the announced number of
+  processes. Under `parallel_tests` it also waits for every process listed in the run's pid file, so it neither
+  hangs when `parallel_tests` starts fewer processes than announced nor finishes before a slow process reports.
+- The socket is named after the run (the pid file under `parallel_tests`, the parent pid otherwise);
+  `Ipc.socket_path`, `Ipc::Server.new` and `Ipc::Client.connect` take the path explicitly.
+
+### Fixed
+- `--format ParallelMatrixFormatter::Formatter` works without requiring the gem first; the formatter file now
+  loads everything it needs.
+
 ## [0.1.0] - 2026-10-03
 
 ### Added

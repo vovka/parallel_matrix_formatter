@@ -16,6 +16,8 @@ GEM
     parallel_split_test (0.10.0)
       parallel (>= 0.5.13)
       rspec-core (>= 3.9.0)
+    parallel_tests (5.8.0)
+      parallel
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
@@ -63,6 +65,7 @@ PLATFORMS
 DEPENDENCIES
   parallel_matrix_formatter!
   parallel_split_test (~> 0.10)
+  parallel_tests (~> 5.0)
   rake (~> 13.0)
   rspec (~> 3.0)
   rubocop (~> 1.21)

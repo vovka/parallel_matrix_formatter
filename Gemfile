@@ -5,6 +5,7 @@ source 'https://rubygems.org'
 gemspec
 
 gem 'parallel_split_test', '~> 0.10'
+gem 'parallel_tests', '~> 5.0'
 gem 'rake', '~> 13.0'
 gem 'rspec', '~> 3.0'
 gem 'rubocop', '~> 1.21'

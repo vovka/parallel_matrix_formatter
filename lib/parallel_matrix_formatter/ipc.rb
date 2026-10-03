@@ -6,10 +6,9 @@ module ParallelMatrixFormatter
   # Communication between the test processes and the orchestrator: newline
   # separated JSON messages over a UNIX socket.
   module Ipc
-    # Every process started by parallel_split_test is forked by the same
-    # runner, so its pid identifies the run.
-    def self.socket_path
-      File.join(Dir.tmpdir, "parallel_matrix_formatter-#{Process.ppid}.sock")
+    # @param run_id [String, Integer] identifies the run, see Runner#run_id
+    def self.socket_path(run_id)
+      File.join(Dir.tmpdir, "parallel_matrix_formatter-#{run_id}.sock")
     end
   end
 end
