@@ -12,16 +12,18 @@ module ParallelMatrixFormatter
   # also waits for every live test process it has not heard from yet. A process
   # counts as heard from when its pid, or its parent's (a wrapper such as spring
   # that parallel_tests started instead of rspec), arrived in a message.
+  # Without a pid file, a process that has not connected within the connect
+  # timeout counts as gone: it died before loading the formatter, or gave up.
   class Orchestrator
     POLL_INTERVAL = 1
 
     def self.for(process_number, runner, output, config)
       return NullOrchestrator.new unless process_number == 1
 
-      new(runner, output, Rendering::Display.new(config, runner.process_count))
+      new(runner, output, Rendering::Display.new(config, runner.process_count), config['connect_timeout_seconds'])
     end
 
-    def initialize(runner, output, display)
+    def initialize(runner, output, display, connect_timeout = Ipc::Client::CONNECT_TIMEOUT)
       @runner = runner
       @output = output
       @display = display
@@ -29,6 +31,7 @@ module ParallelMatrixFormatter
       @disconnected = []
       @processes = []
       @known_pids = []
+      @connect_deadline = Time.now + connect_timeout
       @server = Ipc::Server.new(Ipc.socket_path(runner.run_id))
       @collector = Thread.new { collect_messages }
     end
@@ -70,7 +73,11 @@ module ParallelMatrixFormatter
     end
 
     def all_finished?
-      missing_processes.all? { |process| @disconnected.include?(process) } && no_unknown_live_process?
+      missing_processes.all? { |process| gone?(process) } && no_unknown_live_process?
+    end
+
+    def gone?(process)
+      @disconnected.include?(process) || (!@processes.include?(process) && Time.now > @connect_deadline)
     end
 
     def missing_processes
