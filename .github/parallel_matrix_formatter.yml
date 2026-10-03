@@ -1,0 +1,6 @@
+# Formatter configuration for CI only, see the `env` of the test step in
+# workflows/ci.yml. The suite is small, so instead of one progress line a
+# minute, print one whenever any process advances by 10 percent.
+progress_update:
+  interval_seconds: 0
+  percent_threshold: 10
