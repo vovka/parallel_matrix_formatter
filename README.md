@@ -1,10 +1,29 @@
 # ParallelMatrixFormatter
 
+[![Gem Version](https://badge.fury.io/rb/parallel_matrix_formatter.svg)](https://rubygems.org/gems/parallel_matrix_formatter)
+[![CI](https://github.com/vovka/parallel_matrix_formatter/actions/workflows/ci.yml/badge.svg)](https://github.com/vovka/parallel_matrix_formatter/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.txt)
+
+Parallel RSpec output turns into unreadable interleaved noise. This formatter merges every process into one live
+progress display and one consolidated failure report, rendered as Matrix digital rain.
+
+![Demo: four parallel processes as Matrix rain, then one consolidated failure report](docs/images/demo.gif)
+
 An RSpec formatter for suites run with [`parallel_split_test`](https://github.com/grosser/parallel_split_test)
-or [`parallel_tests`](https://github.com/grosser/parallel_tests). Instead of interleaved output from every
-process, it prints one shared Matrix-style display: a progress line with the percentage of each process
-surrounded by falling katakana "rain", a colored symbol for every finished example, and, at the end, a single
-consolidated RSpec-style summary with all failures from all processes.
+or [`parallel_tests`](https://github.com/grosser/parallel_tests). It prints a progress line with the percentage of
+each process surrounded by falling katakana "rain", a colored symbol for every finished example, and, at the end, a
+single RSpec-style summary with all failures from all processes.
+
+## Quick start
+
+```sh
+bundle add parallel_matrix_formatter --group test
+bundle exec parallel_split_test --format ParallelMatrixFormatter::Formatter spec
+# or
+bundle exec parallel_rspec -o "--format ParallelMatrixFormatter::Formatter" spec
+```
+
+See [Installation](#installation) and [Usage](#usage) for details.
 
 ## What you are looking at
 
