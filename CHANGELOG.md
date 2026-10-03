@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-03
+
 ### Added
 - Support for [`parallel_tests`](https://github.com/grosser/parallel_tests) (`parallel_rspec`) next to
   `parallel_split_test`. The formatter detects the runner and takes the number of processes and the identity of

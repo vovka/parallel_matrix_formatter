@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    parallel_matrix_formatter (0.1.0)
+    parallel_matrix_formatter (0.2.0)
       rspec-core (~> 3.0)
 
 GEM
