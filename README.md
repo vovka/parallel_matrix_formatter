@@ -189,8 +189,11 @@ bundle exec rspec         # runs the specs in one process with RSpec's own forma
 ruby demo/matrix_demo.rb  # previews the display without a test suite
 ```
 
-The specs eat their own dog food: `rake` (and CI) runs them with `parallel_split_test` and this formatter. CI
-adds [`.github/parallel_matrix_formatter.yml`](.github/parallel_matrix_formatter.yml), which prints a progress line
+The specs eat their own dog food: `rake` (and CI) runs them with `parallel_split_test` and this formatter, as
+released on RubyGems. The release is installed into `tmp/` on the first run and renders the report, so a bug in
+the code under test cannot garble the report of its own specs; its version is pinned in
+[`spec/support/released_formatter.rb`](spec/support/released_formatter.rb). CI also sets
+[`.github/parallel_matrix_formatter.yml`](.github/parallel_matrix_formatter.yml), which prints a progress line
 whenever a process advances by 10 percent; to see the same locally:
 `PARALLEL_MATRIX_FORMATTER_CONFIG=.github/parallel_matrix_formatter.yml bundle exec rake`.
 
