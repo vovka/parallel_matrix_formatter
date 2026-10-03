@@ -27,4 +27,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`RUBYOPT="-rparallel_matrix_formatter/silence"`).
 - `NO_COLOR` environment variable support.
 - `demo/matrix_demo.rb` to preview the display without a test suite.
-- GitHub Actions workflow running specs and RuboCop on Ruby 3.2 to 4.0, plus a non-blocking job on Ruby head.
+- GitHub Actions workflow running specs and RuboCop on Ruby 3.2 to 4.0.
