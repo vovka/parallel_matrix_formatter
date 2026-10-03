@@ -14,6 +14,7 @@ module ParallelMatrixFormatter
   # that parallel_tests started instead of rspec), arrived in a message.
   # Without a pid file, a process that has not connected within the connect
   # timeout counts as gone: it died before loading the formatter, or gave up.
+  # Either way it only finishes once the server has read every connection.
   class Orchestrator
     POLL_INTERVAL = 1
 
@@ -73,7 +74,7 @@ module ParallelMatrixFormatter
     end
 
     def all_finished?
-      missing_processes.all? { |process| gone?(process) } && no_unknown_live_process?
+      missing_processes.all? { |process| gone?(process) } && no_unknown_live_process? && @server.idle?
     end
 
     def gone?(process)

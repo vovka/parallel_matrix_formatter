@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   itself as soon as it connects. Without a pid file (`parallel_split_test`) process 1 stops waiting for a process
   that has not connected within the new `connect_timeout_seconds` setting (default 120, the timeout the processes
   already used to connect) and reports it as missing.
+- Under `parallel_tests` the summary could leave out a fast process: it had already left the pid file while its
+  messages were still unread. The orchestrator now also waits until every connection has been read to the end.
 - Without a runner (plain `rspec`) the socket is named after the process's own pid instead of its parent's, so
   two `rspec` runs started from the same shell no longer remove each other's socket.
 - `--format ParallelMatrixFormatter::Formatter` works without requiring the gem first; the formatter file now

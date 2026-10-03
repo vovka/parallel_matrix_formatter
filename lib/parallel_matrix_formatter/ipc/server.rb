@@ -15,6 +15,8 @@ module ParallelMatrixFormatter
         @path = path
         @socket = UNIXServer.new(path)
         @messages = Queue.new
+        @lock = Mutex.new
+        @open_clients = 0
         @acceptor = Thread.new { accept_clients }
       end
 
@@ -30,6 +32,14 @@ module ParallelMatrixFormatter
         end
       end
 
+      # Whether every client that connected, or is waiting to be accepted, has
+      # disconnected and every message has been yielded. A process can exit
+      # before its messages are read, so its absence from a runner's pid file
+      # alone does not mean it has been heard from.
+      def idle?
+        @lock.synchronize { @open_clients.zero? && !@socket.wait_readable(0) } && @messages.empty?
+      end
+
       def close
         @socket.close
         @messages.close
@@ -39,7 +49,14 @@ module ParallelMatrixFormatter
       private
 
       def accept_clients
-        loop { Thread.new(@socket.accept) { |client| read(client) } }
+        loop do
+          @socket.wait_readable
+          client = @lock.synchronize do
+            @open_clients += 1
+            @socket.accept
+          end
+          Thread.new(client) { |connection| read(connection) }
+        end
       rescue IOError, Errno::EBADF
         nil # the socket was closed
       end
@@ -54,6 +71,7 @@ module ParallelMatrixFormatter
         enqueue('type' => 'disconnected', 'process' => process) if process
       ensure
         client.close
+        @lock.synchronize { @open_clients -= 1 }
       end
 
       def enqueue(message)
