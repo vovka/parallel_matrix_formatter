@@ -22,7 +22,11 @@ RSpec.describe ParallelMatrixFormatter::Rendering::Display do
       let(:progress_update) { super().merge('always' => true) }
 
       it 'precedes the symbol with the progress line' do
-        expect(display.example(1, 'passed', 0.5)).to eq('[50%]p')
+        expect(display.example(1, 'passed', 0.5)).to eq('[50%0%.]p')
+      end
+
+      it 'shows a column for every process before all of them have reported' do
+        expect(display.example(2, 'passed', 0.5)).to eq('[0%.50%]p')
       end
 
       it 'shows the latest progress of every process' do
