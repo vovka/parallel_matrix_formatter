@@ -3,10 +3,11 @@
 module ParallelMatrixFormatter
   module Rendering
     # Turns the orchestrator's events into terminal text. Remembers the latest
-    # progress of every process so a progress line can show all of them.
+    # progress of every process, starting at 0% for processes that have not
+    # reported yet, so every progress line shows one column per process.
     class Display
       def initialize(config, total_processes)
-        @progress = {}
+        @progress = (1..total_processes).to_h { |process| [process, 0.0] }
         @policy = ProgressUpdatePolicy.new(config['progress_update'], total_processes)
         @progress_line = ProgressLine.new(config['progress_line'], config['digits'])
         @example_status = ExampleStatus.new(config['example_status'])
