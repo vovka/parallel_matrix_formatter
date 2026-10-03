@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../lib/parallel_matrix_formatter'
+require 'parallel_matrix_formatter'
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
@@ -15,10 +15,8 @@ RSpec.configure do |config|
   config.filter_run_when_matching :focus
   config.example_status_persistence_file_path = 'spec/examples.txt'
   config.disable_monkey_patching!
-  config.warnings = false
-
+  config.warnings = true
   config.default_formatter = 'doc' if config.files_to_run.one?
-
   config.order = :random
   Kernel.srand config.seed
 end

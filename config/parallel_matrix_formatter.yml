@@ -1,48 +1,47 @@
-# Matrix Digital Rain Parallel RSpec Formatter Configuration
+# Default configuration of parallel_matrix_formatter.
+#
+# Copy this file to config/parallel_matrix_formatter.yml (or
+# parallel_matrix_formatter.yml) in your project and change what you like.
+# Keys you leave out fall back to the values below.
 
-# Digits configuration for time display
-digits:
-  use_custom: true
-  symbols: "０１２３４５６７８９"  # Full-width Japanese digits
+# Redirect stdout and stderr of every test process to /dev/null so application
+# output cannot corrupt the display. This hides crashes too: set it to false
+# when something goes wrong and you need to see why.
+suppress_output: true
 
-# Katakana alphabet for digital rain effect
-katakana_alphabet: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポァィゥェォャュョッ"
+# Ten characters that replace the digits 0-9 in the time and the percentages,
+# e.g. "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ". Leave empty to keep plain digits.
+digits: ""
 
-# Symbols for test results
-pass_symbols: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
-fail_symbols: "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ"
-pending_symbol: "🥄"
+# When to print a fresh progress line. The first rule that applies wins.
+progress_update:
+  always: false            # after every example
+  interval_seconds: 60     # at most once per interval, plus once when every process is done; 0 disables
+  percent_threshold: 0     # whenever any process advances by this many percent; 0 disables
 
-# Color configuration
-colors:
-  time: "green"
-  percent: "red"
-  rain: "green"
-  pass_dot: "green"
-  fail_dot: "red"
-  pending_dot: "white"
-  # Color output method: "auto", "rainbow", "ansi", or "none"
-  # auto: tries rainbow first, falls back to ansi
-  # rainbow: uses rainbow gem (may not work in all CI environments)
-  # ansi: uses direct ANSI escape codes (works in most CI environments)
-  # none: disables colors
-  method: "auto"
+# The line showing every process's progress, e.g. "17:04:13 ｷｺｼ89%ﾚﾐｴ､ｷｦｻ92%ｸｪｨｹ".
+# Placeholders: {time}, {columns}.
+progress_line:
+  format: "\n{time} {columns} "
+  # One column per process: its percentage surrounded by random "rain" symbols.
+  column:
+    width: 10
+    align: center          # left, center or right
+    color: red
+    pad_symbols: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
+    pad_color: green
 
-# Update strategies
-update:
-  interval_seconds: 1
-  percent_thresholds: [5]  # Update when any process percentage increases by 5%
-
-# Display configuration
-display:
-  column_width: 15
-  show_time_digits: true
-  rain_density: 0.7  # Probability of showing rain character vs space
-
-# Fade effect configuration for digital rain columns
-fade_effect:
-  enabled: true
-  column_height: 5  # Number of rows per column (vertical display)
-  fade_levels: 5    # Number of brightness levels (1 = brightest, 5 = dimmest)
-  bright_color: "bright_green"  # Color for the brightest characters
-  dim_color: "green"            # Color for the dimmest characters
+# The symbol printed after every example.
+# Placeholders: {symbol}, {process_letter} (A for process 1, B for process 2, ...).
+example_status:
+  format: "{symbol}"
+  # One random character of the string is picked each time.
+  symbols:
+    passed: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
+    failed: "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｦｧｨｩｪｫｬｭｮｯｰ｢｣､"
+    pending: "🥄"
+  # Any color RSpec knows: black, red, green, yellow, blue, magenta, cyan, white, bold_red, ...
+  colors:
+    passed: green
+    failed: red
+    pending: yellow

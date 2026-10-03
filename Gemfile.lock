@@ -2,7 +2,6 @@ PATH
   remote: .
   specs:
     parallel_matrix_formatter (0.1.0)
-      rainbow (~> 3.0)
       rspec-core (~> 3.0)
 
 GEM

@@ -1,0 +1,163 @@
+# frozen_string_literal: true
+
+RSpec.describe ParallelMatrixFormatter::Formatter do
+  subject(:formatter) { described_class.new(output) }
+
+  let(:output) { StringIO.new }
+  let(:config) { { 'suppress_output' => false } }
+  let(:test_env_number) { '' }
+  let(:orchestrator) { instance_double(ParallelMatrixFormatter::NullOrchestrator, close: nil) }
+  let(:client) { instance_double(ParallelMatrixFormatter::Ipc::Client, notify: nil, close: nil) }
+  let(:notification) { instance_double(RSpec::Core::Notifications::ExampleNotification) }
+  let(:start_notification) { instance_double(RSpec::Core::Notifications::StartNotification, count: 4) }
+
+  before do
+    stub_const('ENV', ENV.to_h.merge('TEST_ENV_NUMBER' => test_env_number))
+    allow(ParallelMatrixFormatter::Config).to receive(:load).and_return(config)
+    allow(ParallelMatrixFormatter::Orchestrator).to receive(:for).and_return(orchestrator)
+    allow(ParallelMatrixFormatter::Ipc::Client).to receive(:connect).and_return(client)
+  end
+
+  describe '#initialize' do
+    it 'hosts the orchestrator of process 1 with the output and the configuration' do
+      formatter
+      expect(ParallelMatrixFormatter::Orchestrator).to have_received(:for).with(1, 1, output, config)
+    end
+
+    context 'when TEST_ENV_NUMBER is 2' do
+      let(:test_env_number) { '2' }
+
+      it 'runs as process 2' do
+        formatter
+        expect(ParallelMatrixFormatter::Orchestrator).to have_received(:for).with(2, 1, output, config)
+      end
+    end
+
+    context 'when parallel_split_test knows the number of processes' do
+      before do
+        runner = Module.new.tap { |mod| mod.define_singleton_method(:processes) { 3 } }
+        stub_const('ParallelSplitTest', runner)
+      end
+
+      it 'passes it on to the orchestrator' do
+        formatter
+        expect(ParallelMatrixFormatter::Orchestrator).to have_received(:for).with(1, 3, output, config)
+      end
+    end
+
+    context 'when suppress_output is true' do
+      let(:config) { { 'suppress_output' => true } }
+      let(:terminal) { StringIO.new }
+
+      before { allow(ParallelMatrixFormatter::Output::Silencer).to receive(:silence).and_return(terminal) }
+
+      it 'renders to the silenced terminal' do
+        formatter
+        expect(ParallelMatrixFormatter::Orchestrator).to have_received(:for).with(1, 1, terminal, config)
+      end
+
+      context 'when RSpec writes to a file' do
+        let(:output) { File.new(File::NULL, 'w') }
+
+        after { output.close }
+
+        it 'renders to the file' do
+          formatter
+          expect(ParallelMatrixFormatter::Orchestrator).to have_received(:for).with(1, 1, output, config)
+        end
+      end
+    end
+  end
+
+  describe '#start' do
+    it 'connects to the orchestrator' do
+      formatter.start(start_notification)
+      expect(ParallelMatrixFormatter::Ipc::Client).to have_received(:connect)
+    end
+  end
+
+  describe 'reporting an example' do
+    before do
+      formatter.start(start_notification)
+      formatter.example_started(notification)
+    end
+
+    it 'notifies about a passed example with the progress' do
+      formatter.example_passed(notification)
+      expect(client).to have_received(:notify).with(type: 'example', process: 1, status: :passed, progress: 0.25)
+    end
+
+    it 'notifies about a pending example' do
+      formatter.example_pending(notification)
+      expect(client).to have_received(:notify).with(hash_including(type: 'example', status: :pending))
+    end
+
+    it 'notifies about a failed example' do
+      formatter.example_failed(failed_notification)
+      expect(client).to have_received(:notify).with(hash_including(type: 'example', status: :failed))
+    end
+
+    it 'counts every started example for the progress' do
+      formatter.example_started(notification)
+      formatter.example_passed(notification)
+      expect(client).to have_received(:notify).with(hash_including(progress: 0.5))
+    end
+
+    context 'when running as process 2' do
+      let(:test_env_number) { '2' }
+
+      it 'notifies as process 2' do
+        formatter.example_passed(notification)
+        expect(client).to have_received(:notify).with(hash_including(process: 2))
+      end
+    end
+  end
+
+  describe '#dump_summary' do
+    let(:summary) do
+      instance_double(RSpec::Core::Notifications::SummaryNotification,
+                      example_count: 4, failure_count: 1, pending_count: 2, duration: 1.5)
+    end
+
+    before do
+      formatter.start(start_notification)
+      formatter.example_failed(failed_notification)
+      formatter.dump_summary(summary)
+    end
+
+    it 'sends the counts and the duration' do
+      expect(client).to have_received(:notify)
+        .with(hash_including(type: 'summary', process: 1, examples: 4, failures: 1, pending: 2, duration: 1.5))
+    end
+
+    it 'sends the details of the failed examples' do
+      expect(client).to have_received(:notify).with(hash_including(failed_examples: [failure_details]))
+    end
+  end
+
+  describe '#close' do
+    it 'closes the client' do
+      formatter.start(start_notification)
+      formatter.close(notification)
+      expect(client).to have_received(:close)
+    end
+
+    it 'closes the orchestrator' do
+      formatter.close(notification)
+      expect(orchestrator).to have_received(:close)
+    end
+  end
+
+  def failed_notification
+    example = instance_double(RSpec::Core::Example, location_rerun_argument: './spec/a_spec.rb:7')
+    instance_double(RSpec::Core::Notifications::FailedExampleNotification,
+                    description: 'adds up', example: example,
+                    colorized_message_lines: ['Failure/Error: boom'],
+                    colorized_formatted_backtrace: ['# ./spec/a_spec.rb:7'])
+  end
+
+  def failure_details
+    { description: 'adds up', location: './spec/a_spec.rb:7',
+      message_lines: ['Failure/Error: boom'], backtrace: ['# ./spec/a_spec.rb:7'] }
+  end
+end
