@@ -48,6 +48,11 @@ RSpec.describe ParallelMatrixFormatter::Rendering::ProgressUpdatePolicy do
         expect(policy.update?(1 => 1.0, 2 => 1.0)).to be(true)
       end
 
+      it 'is due when more processes than counted have completed' do
+        policy.update?(1 => 0.1)
+        expect(policy.update?(1 => 1.0, 2 => 1.0, 3 => 1.0)).to be(true)
+      end
+
       it 'is not due when only some processes have completed' do
         policy.update?(1 => 0.1)
         expect(policy.update?(1 => 1.0)).to be(false)

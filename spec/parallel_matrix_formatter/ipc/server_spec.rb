@@ -38,6 +38,17 @@ RSpec.describe ParallelMatrixFormatter::Ipc::Server do
       expect(messages(2).map { |message| message['n'] }).to eq([1, 2])
     end
 
+    it 'yields nil whenever no message arrives within the poll interval' do
+      ticks = []
+      Timeout.timeout(5) do
+        server.each_message(poll_interval: 0.05) do |message|
+          ticks << message
+          break if ticks.size == 2
+        end
+      end
+      expect(ticks).to eq([nil, nil])
+    end
+
     it 'queues a disconnected message with the process number when the client closes' do
       client.puts('{"type":"example","process":3}')
       client.close

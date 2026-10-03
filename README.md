@@ -9,16 +9,18 @@ progress display and one consolidated failure report, rendered as Matrix digital
 
 ![Demo: four parallel processes as Matrix rain, then one consolidated failure report](docs/images/demo.gif)
 
-An RSpec formatter for suites run with [`parallel_split_test`](https://github.com/grosser/parallel_split_test).
-It prints a progress line with the percentage of each process surrounded by falling katakana "rain", a colored
-symbol for every finished example, and, at the end, a single RSpec-style summary with all failures from all
-processes.
+An RSpec formatter for suites run with [`parallel_split_test`](https://github.com/grosser/parallel_split_test)
+or [`parallel_tests`](https://github.com/grosser/parallel_tests). It prints a progress line with the percentage of
+each process surrounded by falling katakana "rain", a colored symbol for every finished example, and, at the end, a
+single RSpec-style summary with all failures from all processes.
 
 ## Quick start
 
 ```sh
 bundle add parallel_matrix_formatter --group test
 bundle exec parallel_split_test --format ParallelMatrixFormatter::Formatter spec
+# or
+bundle exec parallel_rspec -o "--format ParallelMatrixFormatter::Formatter" spec
 ```
 
 See [Installation](#installation) and [Usage](#usage) for details.
@@ -52,7 +54,7 @@ When the last process finishes, the rain stops and one consolidated report follo
 the failures of all processes with their messages in red and backtraces in cyan, the wall-clock time next to the
 time summed across processes, the totals (red when something failed, yellow when examples are only pending, green
 otherwise) and the commands to rerun the failures. The first line and the closing `Summary:` block are printed by
-`parallel_split_test` itself.
+`parallel_split_test` itself (`parallel_tests` prints its own first line and totals in the same places).
 
 ![A complete run: rain followed by the consolidated summary](docs/images/full_run.png)
 
@@ -73,13 +75,28 @@ gem 'parallel_matrix_formatter', group: :test
 
 and run `bundle install`.
 
-Requirements: Ruby 3.2 or newer, `rspec-core` 3.x. The processes talk over UNIX sockets, so Linux and macOS are
-supported; Windows is not.
+Requirements: Ruby 3.2 or newer, `rspec-core` 3.x, and either `parallel_split_test` or `parallel_tests` (or
+neither, for a single process). The processes talk over UNIX sockets, so Linux and macOS are supported; Windows is
+not.
 
 ## Usage
 
+With `parallel_split_test`:
+
 ```sh
 bundle exec parallel_split_test --format ParallelMatrixFormatter::Formatter spec
+```
+
+With `parallel_tests`:
+
+```sh
+bundle exec parallel_rspec -o "--format ParallelMatrixFormatter::Formatter" spec
+```
+
+or, to make it the default, put the option in a `.rspec_parallel` file, which `parallel_rspec` reads:
+
+```
+--format ParallelMatrixFormatter::Formatter
 ```
 
 The formatter also works with a single process:
@@ -184,6 +201,7 @@ deprecation warnings, output of C extensions and child processes therefore canno
 
   ```sh
   RUBYOPT="-rparallel_matrix_formatter/silence" bundle exec parallel_split_test --format ParallelMatrixFormatter::Formatter spec
+  RUBYOPT="-rparallel_matrix_formatter/silence" bundle exec parallel_rspec -o "--format ParallelMatrixFormatter::Formatter" spec
   ```
 
 - Suppression also hides crashes. When a process dies without reporting, the summary shows a yellow warning
@@ -198,6 +216,35 @@ connect to it and send the result of every example and, at the end, a summary of
 renders the progress lines and status symbols as messages arrive. When every process has sent its summary or has
 disconnected, it prints the consolidated summary.
 
+The formatter detects the runner it is started by:
+
+| Runner | Number of processes | Identifies the run (socket name) |
+| --- | --- | --- |
+| `parallel_split_test` | `ParallelSplitTest.processes` | pid of the parent process |
+| `parallel_tests` | `PARALLEL_TEST_GROUPS` | name of the `PARALLEL_PID_FILE` |
+| none | 1 | pid of the parent process |
+
+`parallel_tests` can start fewer processes than it announces: it drops empty groups (more processes than spec
+files) without correcting `PARALLEL_TEST_GROUPS`. So under `parallel_tests` the orchestrator does not wait for
+the announced number. It waits for the processes that connected, and for every process still listed in the
+pid file that `parallel_tests` keeps for the run, so it neither hangs for a process that never existed nor
+finishes before a slow one reports.
+
+## Using it with parallel_tests
+
+These `parallel_rspec` options are not supported, because they change how the output of the processes reaches
+the terminal or how many times a process runs:
+
+- `--serialize-stdout` holds back the output of process 1 until it has finished, so the display is not live.
+- `--prefix-output-with-test-env-number` prefixes every chunk of output, which garbles the display.
+- `--test-file-limit` runs several RSpec processes one after another under the same process number.
+- `--only-group-continuous-test-env` numbers the processes after their group, so there may be no process 1 to
+  host the display.
+
+A process that dies before RSpec has loaded the formatter (for example because of a syntax error in a required
+file) never connects, so the yellow warning about missing processes cannot name it. `parallel_rspec` still
+exits with a failure status.
+
 ## Development
 
 ```sh
@@ -207,10 +254,14 @@ bundle exec rspec         # runs the specs in one process with RSpec's own forma
 ruby demo/matrix_demo.rb  # previews the display without a test suite
 ```
 
-The specs eat their own dog food: `rake` (and CI) runs them with `parallel_split_test` and this formatter. CI
-adds [`.github/parallel_matrix_formatter.yml`](.github/parallel_matrix_formatter.yml), which prints a progress line
+The specs eat their own dog food: `rake` (and CI) runs them with `parallel_split_test` and this formatter, as
+released on RubyGems. The release is installed into `tmp/` on the first run and renders the report, so a bug in
+the code under test cannot garble the report of its own specs; its version is pinned in
+[`spec/support/released_formatter.rb`](spec/support/released_formatter.rb). CI also sets
+[`.github/parallel_matrix_formatter.yml`](.github/parallel_matrix_formatter.yml), which prints a progress line
 whenever a process advances by 10 percent; to see the same locally:
-`PARALLEL_MATRIX_FORMATTER_CONFIG=.github/parallel_matrix_formatter.yml bundle exec rake`.
+`PARALLEL_MATRIX_FORMATTER_CONFIG=.github/parallel_matrix_formatter.yml bundle exec rake`. The integration specs
+run the formatter for real under both `parallel_split_test` (faked by a stub) and `parallel_rspec`.
 
 ## Contributing
 

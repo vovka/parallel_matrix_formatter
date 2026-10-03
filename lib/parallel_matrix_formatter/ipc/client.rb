@@ -10,7 +10,7 @@ module ParallelMatrixFormatter
       # Process 1 may still be loading spec files when the others start.
       CONNECT_TIMEOUT = 120
 
-      def self.connect(path = Ipc.socket_path, timeout: CONNECT_TIMEOUT)
+      def self.connect(path, timeout: CONNECT_TIMEOUT)
         deadline = Time.now + timeout
         begin
           new(UNIXSocket.new(path))
