@@ -1,49 +1,37 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Demo script to test the Matrix Digital Rain formatter rendering
-require_relative '../lib/parallel_matrix_formatter/rendering/update_renderer'
-require_relative '../lib/parallel_matrix_formatter/rendering/symbol_renderer'
+# Previews the display without a test suite: ruby demo/matrix_demo.rb
+require_relative '../lib/parallel_matrix_formatter'
 
-puts 'Matrix Digital Rain Formatter Demo'
-puts '=' * 50
-puts
+PROCESSES = 3
+EXAMPLES = 40
+STATUSES = [*['passed'] * 18, 'pending', 'failed'].freeze
 
-# Demo UpdateRenderer
-puts 'UpdateRenderer Demo:'
-update_renderer = ParallelMatrixFormatter::Rendering::UpdateRenderer.new(1) # Process 1
+config = ParallelMatrixFormatter::Config.load
+config['progress_update'] = { 'always' => false, 'interval_seconds' => 0.5, 'percent_threshold' => 0 }
+display = ParallelMatrixFormatter::Rendering::Display.new(config, PROCESSES)
 
-puts "Simulating updates for process 1:"
-update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :passed, 'progress' => 0.25 } })
-sleep(0.1)
-update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :failed, 'progress' => 0.50 } })
-sleep(0.1)
-update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :pending, 'progress' => 0.75 } })
-sleep(0.1)
-update_renderer.update({ 'process_number' => 1, 'message' => { 'status' => :passed, 'progress' => 1.0 } })
-puts
+failures = Hash.new(0)
+pending = Hash.new(0)
+steps = (1..PROCESSES).flat_map { |process| (1..EXAMPLES).map { |step| [process, step] } }
+steps.sort_by! { |_process, step| [step, rand] }
+steps.each do |process, step|
+  status = STATUSES.sample
+  failures[process] += 1 if status == 'failed'
+  pending[process] += 1 if status == 'pending'
+  print display.example(process, status, step.fdiv(EXAMPLES))
+  sleep 0.03
+end
 
-puts "Simulating updates for process 2:"
-update_renderer.update({ 'process_number' => 2, 'message' => { 'status' => :passed, 'progress' => 0.33 } })
-sleep(0.1)
-update_renderer.update({ 'process_number' => 2, 'message' => { 'status' => :failed, 'progress' => 0.66 } })
-sleep(0.1)
-update_renderer.update({ 'process_number' => 2, 'message' => { 'status' => :pending, 'progress' => 1.0 } })
-puts
-
-# Demo SymbolRenderer
-puts 'SymbolRenderer Demo:'
-symbol_renderer = ParallelMatrixFormatter::Rendering::SymbolRenderer.new(1) # Process 1
-
-puts "Passed symbol: #{symbol_renderer.render_passed}"
-puts "Failed symbol: #{symbol_renderer.render_failed}"
-puts "Pending symbol: #{symbol_renderer.render_pending}"
-puts
-
-symbol_renderer_process_b = ParallelMatrixFormatter::Rendering::SymbolRenderer.new(2) # Process 2
-puts "Passed symbol (Process B): #{symbol_renderer_process_b.render_passed}"
-puts "Failed symbol (Process B): #{symbol_renderer_process_b.render_failed}"
-puts "Pending symbol (Process B): #{symbol_renderer_process_b.render_pending}"
-puts
-
-puts "Demo complete."
+summaries = (1..PROCESSES).map do |process|
+  failed = Array.new(failures[process]) do |index|
+    location = "./spec/widget_#{process}_spec.rb:#{10 + index}"
+    { 'description' => "Widget ##{process}.#{index} does the thing", 'location' => location,
+      'message_lines' => ['Failure/Error: expect(actual).to eq(expected)', '  expected: 1', '       got: 2'],
+      'backtrace' => ["# #{location}:in 'block (2 levels) in <top (required)>'"] }
+  end
+  { 'examples' => EXAMPLES, 'failures' => failures[process], 'pending' => pending[process],
+    'duration' => EXAMPLES * 0.03, 'failed_examples' => failed }
+end
+puts display.summary(summaries, [])

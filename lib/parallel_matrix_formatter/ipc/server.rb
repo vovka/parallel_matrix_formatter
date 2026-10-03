@@ -1,50 +1,60 @@
 # frozen_string_literal: true
-require 'socket'
+
+require 'fileutils'
 require 'json'
+require 'socket'
 
 module ParallelMatrixFormatter
   module Ipc
-    # The Server class implements a UNIX socket server for Inter-Process Communication (IPC).
-    # It listens for incoming messages from clients (e.g., `Ipc::Client` instances),
-    # parses them as JSON, and yields them to a provided block for processing.
-    # It handles socket creation, client connections, and proper cleanup.
+    # Accepts connections from every test process and queues their messages.
+    # When a client disconnects, a synthetic `disconnected` message carrying its
+    # process number is queued, so a crashed process is noticed too.
     class Server
-      SOCKET_PATH = "/tmp/parallel_matrix_formatter.sock"
-
-      def initialize
-        File.delete(SOCKET_PATH) if File.exist?(SOCKET_PATH)
-        @server = UNIXServer.new(SOCKET_PATH)
+      def initialize(path = Ipc.socket_path)
+        FileUtils.rm_f(path)
+        @path = path
+        @socket = UNIXServer.new(path)
+        @messages = Queue.new
+        @acceptor = Thread.new { accept_clients }
       end
 
-      def start(&block)
-        loop do
-          client = @server.accept
-          Thread.new do
-            begin
-              while (message = client.gets)
-                message = begin
-                  JSON.parse(message)
-                rescue JSON::ParserError => e
-                  {
-                    error: "Invalid JSON format",
-                    message: e.message,
-                    raw: message
-                  }
-                end
-                yield(message) if block_given?
-                # Optionally, respond to the client here
-              end
-            ensure
-              client.close
-            end
-          end
+      # Yields messages in arrival order until the server is closed.
+      def each_message
+        while (message = @messages.pop)
+          yield message
         end
-      rescue IOError => e
       end
 
       def close
-        @server.close if @server
-        File.delete(SOCKET_PATH) if File.exist?(SOCKET_PATH)
+        @socket.close
+        @messages.close
+        FileUtils.rm_f(@path)
+      end
+
+      private
+
+      def accept_clients
+        loop { Thread.new(@socket.accept) { |client| read(client) } }
+      rescue IOError, Errno::EBADF
+        nil # the socket was closed
+      end
+
+      def read(client)
+        process = nil
+        while (line = client.gets)
+          message = JSON.parse(line)
+          process = message['process']
+          enqueue(message)
+        end
+        enqueue('type' => 'disconnected', 'process' => process) if process
+      ensure
+        client.close
+      end
+
+      def enqueue(message)
+        @messages << message
+      rescue ClosedQueueError
+        nil # nobody is listening any more
       end
     end
   end

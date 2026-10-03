@@ -1,121 +1,66 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-require 'parallel_matrix_formatter/ipc/server'
+require 'timeout'
 
 RSpec.describe ParallelMatrixFormatter::Ipc::Server do
-  let(:socket_path) { described_class::SOCKET_PATH }
-  let(:mock_server) { instance_double(UNIXServer) }
-  let(:mock_client_socket) { instance_double(UNIXSocket, gets: nil, close: nil) }
+  subject(:server) { described_class.new(path) }
 
-  before do
-    allow(File).to receive(:exist?).with(socket_path).and_return(false)
-    allow(File).to receive(:delete).with(socket_path)
-    allow(UNIXServer).to receive(:new).with(socket_path).and_return(mock_server)
-    allow(mock_server).to receive(:accept).and_return(mock_client_socket)
-    allow(mock_server).to receive(:close)
-    # Stub Thread.new to execute the block immediately and synchronously
-    allow(Thread).to receive(:new) { |&block| block.call }
+  let(:dir) { Dir.mktmpdir }
+  let(:path) { File.join(dir, 'test.sock') }
+  let(:client) { UNIXSocket.new(path) }
+
+  after do
+    server.close
+    FileUtils.remove_entry(dir)
   end
 
-  describe '#initialize' do
-    it 'deletes the socket file if it exists' do
-      allow(File).to receive(:exist?).with(socket_path).and_return(true)
-      expect(File).to receive(:delete).with(socket_path)
-      described_class.new
+  def messages(count)
+    received = []
+    Timeout.timeout(5) do
+      server.each_message do |message|
+        received << message
+        break if received.size == count
+      end
     end
-
-    it 'creates a new UNIXServer' do
-      expect(UNIXServer).to receive(:new).with(socket_path)
-      described_class.new
-    end
+    received
   end
 
-  describe '#start' do
-    subject(:server) { described_class.new }
+  describe '#each_message' do
+    before { server }
 
-    before do
-      # Stub the loop to run only once for testing purposes
-      allow(server).to receive(:loop).and_yield
+    it 'yields the JSON message a client sent' do
+      client.puts('{"type":"example","process":2}')
+      expect(messages(1)).to eq([{ 'type' => 'example', 'process' => 2 }])
     end
 
-    it 'accepts a client connection' do
-      server.start
-      expect(mock_server).to have_received(:accept)
+    it 'yields messages in arrival order' do
+      client.puts('{"process":1,"n":1}', '{"process":1,"n":2}')
+      expect(messages(2).map { |message| message['n'] }).to eq([1, 2])
     end
 
-    context 'when a message is received' do
-      let(:message_data) { { 'process_number' => 1, 'message' => { 'status' => 'passed' } } }
-      let(:json_message) { message_data.to_json + "\n" }
-
-      before do
-        allow(mock_client_socket).to receive(:gets).and_return(json_message, nil) # Return message then nil to stop loop
-      end
-
-      it 'yields the parsed message to the block' do
-        expect { |b| server.start(&b) }.to yield_with_args(message_data)
-      end
-
-      it 'closes the client socket' do
-        server.start
-        expect(mock_client_socket).to have_received(:close)
-      end
-    end
-
-    context 'when an invalid JSON message is received' do
-      let(:invalid_json_message) { "not json\n" }
-
-      before do
-        allow(mock_client_socket).to receive(:gets).and_return(invalid_json_message, nil)
-      end
-
-      it 'yields an error message to the block' do
-        expect { |b| server.start(&b) }.to yield_with_args(hash_including(error: "Invalid JSON format"))
-      end
-
-      it 'closes the client socket' do
-        server.start
-        expect(mock_client_socket).to have_received(:close)
-      end
-    end
-
-    context 'when client socket raises IOError' do
-      before do
-        allow(mock_client_socket).to receive(:gets).and_raise(IOError, "Broken pipe")
-      end
-
-      it 'closes the client socket' do
-        server.start
-        expect(mock_client_socket).to have_received(:close)
-      end
+    it 'queues a disconnected message with the process number when the client closes' do
+      client.puts('{"type":"example","process":3}')
+      client.close
+      expect(messages(2).last).to eq('type' => 'disconnected', 'process' => 3)
     end
   end
 
   describe '#close' do
-    it 'closes the server socket' do
-      server = described_class.new
+    it 'removes the socket file' do
       server.close
-      expect(mock_server).to have_received(:close)
+      expect(File.exist?(path)).to be(false)
     end
 
-    it 'deletes the socket file' do
-      # Ensure the file exists so delete is called during close
-      allow(File).to receive(:exist?).with(socket_path).and_return(true)
-      # Stub File.delete during initialization to prevent it from being called
-      # and interfering with the expectation for the close method.
-      allow(File).to receive(:delete).with(socket_path)
-
-      server = described_class.new
-      # Now, expect delete to be called when close is invoked
-      expect(File).to receive(:delete).with(socket_path).once
+    it 'ends each_message' do
       server.close
+      expect { |probe| Timeout.timeout(5) { server.each_message(&probe) } }.not_to yield_control
     end
+  end
 
-    it 'does not raise an error if server is nil' do
-      server = described_class.new
-      # Directly set @server to nil to simulate failed initialization
-      server.instance_variable_set(:@server, nil)
-      expect { server.close }.not_to raise_error
+  describe '.new' do
+    it 'replaces a stale socket file' do
+      File.write(path, '')
+      expect(server).to be_a(described_class)
     end
   end
 end

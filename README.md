@@ -1,150 +1,166 @@
 # ParallelMatrixFormatter
 
-**NOTE: This README is currently under construction and may not fully reflect the most recent changes in the codebase.**
+An RSpec formatter for suites run with [`parallel_split_test`](https://github.com/grosser/parallel_split_test).
+Instead of interleaved output from every process, it prints one shared Matrix-style display: a progress line with
+the percentage of each process surrounded by falling katakana "rain", a colored symbol for every finished example,
+and, at the end, a single consolidated RSpec-style summary with all failures from all processes.
 
+## Screenshots
 
-A Ruby gem that provides a Matrix Digital Rain RSpec formatter for use with `parallel_split_tests`. This formatter displays real-time, orchestrated "Matrix digital rain" progress per process in the terminal using configurable visual output inspired by the Matrix movie.
+![Matrix digital rain output](docs/images/matrix_digital_rain_example.png)
 
-## Screenshot
+The same display after a small configuration change (plain digits, emoji symbols):
 
-![Matrix Digital Rain Formatter Example](https://raw.githubusercontent.com/vovka/parallel_matrix_formatter/refs/heads/v0.1.0-claude/docs/images/matrix_digital_rain_example.png)
-
-After simple reconfiguration:
-![Matrix Digital Rain Formatter Example with Custom Config](https://raw.githubusercontent.com/vovka/parallel_matrix_formatter/refs/heads/v0.1.0-claude/docs/images/arabic_number_with_emoji.png)
-
-## Features
-
-- **Matrix Digital Rain Display**: Real-time progress visualization with falling katakana characters
-- **Orchestrated Parallel Output**: Single orchestrator coordinates display from multiple test processes
-- **Fully Configurable**: All symbols, colors, and update strategies loaded from YAML
-- **IPC Communication**: Robust Unix socket communication with file-based fallback for CI
-- **Output Suppression**: Strict suppression of non-formatter output (via `Output::Suppressor`)
-- **GitHub Actions Compatible**: Designed to work in CI environments
+![Customized output](docs/images/arabic_number_with_emoji.png)
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Add the gem to your Gemfile:
 
 ```ruby
-gem 'parallel_matrix_formatter'
+gem 'parallel_matrix_formatter', group: :test
 ```
 
-And then execute:
+and run `bundle install`.
 
-    $ bundle install
-
-Or install it yourself as:
-
-    $ gem install parallel_matrix_formatter
-
-## Configuration
-
-Create a `parallel_matrix_formatter.yml` configuration file in your project root or `config/` directory:
-
-```yaml
-# Digits configuration for time display
-digits:
-  use_custom: true
-  symbols: "０１２３４５６７８９"  # Full-width Japanese digits
-
-# Katakana alphabet for digital rain effect
-katakana_alphabet: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポァィゥェォャュョッ"
-
-# Symbols for test results
-pass_symbols: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"
-fail_symbols: "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ"
-pending_symbol: "🥄"
-
-# Color configuration
-colors:
-  time: "green"
-  percent: "red"
-  rain: "green"
-  pass_dot: "green"
-  fail_dot: "red"
-  pending_dot: "white"
-
-# Update strategies
-update:
-  interval_seconds: 1
-  percent_thresholds: [5]  # Update when any process percentage increases by 5%
-
-# Display configuration
-display:
-  column_width: 15
-  show_time_digits: true
-  rain_density: 0.7  # Probability of showing rain character vs space
-```
+Requirements: Ruby 2.7 or newer, `rspec-core` 3.x. The processes talk over UNIX sockets, so Linux and macOS are
+supported; Windows is not.
 
 ## Usage
 
-Use with RSpec and parallel_split_tests:
+```sh
+bundle exec parallel_split_test --format ParallelMatrixFormatter::Formatter spec
+```
 
-```bash
-# Set the formatter
+The formatter also works with a single process:
+
+```sh
 bundle exec rspec --format ParallelMatrixFormatter::Formatter
-
-# Or configure in .rspec
---format ParallelMatrixFormatter::Formatter
 ```
 
-### Environment Variables
-
-- `PARALLEL_MATRIX_FORMATTER_CONFIG`: Path to custom config file
-- `PARALLEL_MATRIX_FORMATTER_SUPPRESS`: Control output suppression level (none, ruby_warnings, app_warnings, app_output, gem_output, all)
-- `PARALLEL_MATRIX_FORMATTER_NO_SUPPRESS`: Disable output suppression entirely
-- `NO_COLOR`: Disable color output
-- `FORCE_COLOR`: Force color output even if not detected
-
-### Color Support
-
-The formatter supports color output in terminals and CI environments including GitHub Actions. Color configuration options in `colors.method`:
-
-- `auto` (default): Automatically detects best color method (rainbow gem → ANSI fallback)
-- `rainbow`: Uses rainbow gem for colors (may not work in all CI environments)
-- `ansi`: Uses direct ANSI escape codes (works in most CI environments)
-- `none`: Disables color output
-
-The formatter automatically detects CI environments and enables colors when appropriate.
-
-## Output Format
-
-The formatter displays a single line per update:
+The output looks like this (colors omitted):
 
 ```
-ｲﾛ:ｸﾗ:ﾛﾒ ｳｰﾔﾖﾌ34%ｴﾍｿｱﾆ｢ﾙﾂﾅｸ39%ﾅﾔﾎｷｿ ﾜ｣ﾜﾘﾌｯﾍｬﾗ､ﾃｽｷﾁｴﾛﾅｶｩﾌｰﾕｾﾒｵｧ🥄ｯﾓｴﾈ｢ﾅﾘｬｱｩｺｹｶｯｽｬﾘﾗｴﾂｹﾃｷｧﾇｩｯｪﾅｾｨﾎﾕﾕﾌｪｺﾐｱﾖｳﾐｾｭｫﾐｳﾓﾆｷｩﾜｪﾈﾈﾅ
+17:04:13 ｷｺｼ89%ﾚﾐｴ､ｷｦｻ92%ｸｪｨｹ ｱｲｳ
+...
+
+Failures:
+
+  1) Widget does the thing
+     Failure/Error: expect(actual).to eq(expected)
+     ...
+
+Finished in 12.3 seconds (22.8 seconds across processes)
+8 examples, 2 failures, 2 pending
+
+Failed examples:
+
+rspec ./spec/widget_spec.rb:10 # Widget does the thing
 ```
 
-- **Time** (left): Current time with configurable digits (green)
-- **Process columns**: Digital rain with overlaid progress percentage (rain: green, percent: red)
-- **Test dots** (right): Individual test results (green: pass, red: fail, 🥄: pending)
+## Configuration
 
-## Architecture
+The defaults live in [`config/parallel_matrix_formatter.yml`](config/parallel_matrix_formatter.yml). To change
+them, create `config/parallel_matrix_formatter.yml` or `parallel_matrix_formatter.yml` in your project root, or
+point the `PARALLEL_MATRIX_FORMATTER_CONFIG` environment variable at a file. You only need to list the keys you
+change; everything else falls back to the defaults.
 
-### Components
+The full schema, with the default values:
 
-- **Formatter**: Main RSpec formatter entry point
-- **Orchestrator**: Coordinates output from multiple processes
-- **IPC**: Inter-process communication via Unix sockets (`IPC::Client`, `IPC::Server`)
-- **Output**: Handles output suppression (`Output::Suppressor`, `Output::NullIO`)
-- **Rendering**: Handles Matrix-style output rendering (`Rendering::SymbolRenderer`, `Rendering::UpdateRenderer`)
+```yaml
+# Redirect STDOUT and STDERR of every test process to /dev/null.
+suppress_output: true
 
-### Communication Flow
+# Ten characters that replace the digits 0-9 in the time and the percentages.
+# Leave empty to keep plain digits.
+digits: ""
 
-1. Orchestrator starts and creates IPC server
-2. Each RSpec process connects via IPC client
-3. Processes send progress updates to orchestrator
-4. Orchestrator renders and displays unified output
-5. Final summary aggregates results from all processes
+# When to print a fresh progress line. The first rule that applies wins.
+progress_update:
+  always: false            # after every example
+  interval_seconds: 60     # at most once per interval, plus once when every process is done; 0 disables
+  percent_threshold: 0     # whenever any process advances by this many percent; 0 disables
+
+# The line showing the progress of every process.
+progress_line:
+  format: "\n{time} {columns} "   # placeholders: {time}, {columns}
+  column:                         # one column per process
+    width: 10
+    align: center                 # left, center or right
+    color: red                    # color of the percentage
+    pad_symbols: "ｱｲｳｴｵ..."       # characters picked at random to pad the column ("rain")
+    pad_color: green
+
+# The symbol printed after every example.
+example_status:
+  format: "{symbol}"              # placeholders: {symbol}, {process_letter} (A for process 1, B for 2, ...)
+  symbols:                        # one random character of the string is picked each time
+    passed: "ｱｲｳｴｵ..."
+    failed: "ｱｲｳｴｵ..."
+    pending: "🥄"
+  colors:
+    passed: green
+    failed: red
+    pending: yellow
+```
+
+Colors can be any name known to RSpec's console codes: `black`, `red`, `green`, `yellow`, `blue`, `magenta`,
+`cyan`, `white` and their `bold_*` variants. Colors are always emitted, because CI logs render ANSI codes; set the
+`NO_COLOR` environment variable to turn them off.
+
+Example override: emoji for the examples, and a progress line whenever a process advances by 10 percent
+(instead of once a minute):
+
+```yaml
+progress_update:
+  interval_seconds: 0
+  percent_threshold: 10
+example_status:
+  symbols:
+    passed: "🟢"
+    failed: "🔴"
+    pending: "🟡"
+```
+
+## Output suppression
+
+With `suppress_output: true` (the default) the formatter reopens the STDOUT and STDERR file descriptors of every
+test process to `/dev/null`, and keeps a private copy of the original stdout for the display. Application logs,
+deprecation warnings, output of C extensions and child processes therefore cannot corrupt the display.
+
+- RSpec creates formatters only after the files given with `--require` (for example `rails_helper`) are loaded, so
+  output printed while the application boots is not covered. To silence that too, load the gem's silence file
+  first:
+
+  ```sh
+  RUBYOPT="-rparallel_matrix_formatter/silence" bundle exec parallel_split_test --format ParallelMatrixFormatter::Formatter spec
+  ```
+
+- Suppression also hides crashes. When a process dies without reporting, the summary shows a yellow warning
+  naming it. To see why, set `suppress_output: false`.
+- If you pass `--out FILE` to RSpec, the display is written to that file instead of the terminal.
+
+## How it works
+
+Every test process loads the formatter. Process 1 (`TEST_ENV_NUMBER` empty or `1`) additionally hosts the
+orchestrator, which listens on a UNIX socket in the temporary directory (one per run). The other processes
+connect to it and send the result of every example and, at the end, a summary of their run. The orchestrator
+renders the progress lines and status symbols as messages arrive. When every process has sent its summary or has
+disconnected, it prints the consolidated summary.
 
 ## Development
 
-After checking out the repo, run `bundle install` to install dependencies. Then, run `./bin/rspec-docker` to run the tests.
+```sh
+bundle install
+bundle exec rake          # runs the specs and RuboCop
+ruby demo/matrix_demo.rb  # previews the display without a test suite
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub.
+Bug reports and pull requests are welcome at https://github.com/vovka/parallel_matrix_formatter. Please add specs
+for your changes and make sure `bundle exec rake` passes.
 
 ## License
 
-The gem is available as open source under the [MIT License](https://opensource.org/licenses/MIT).
+Released under the [MIT License](LICENSE.txt).

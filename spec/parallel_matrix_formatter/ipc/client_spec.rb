@@ -1,69 +1,67 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-require 'parallel_matrix_formatter/ipc/client'
+require 'timeout'
 
 RSpec.describe ParallelMatrixFormatter::Ipc::Client do
-  let(:mock_socket) { instance_double(UNIXSocket, puts: nil, close: nil) }
+  let(:dir) { Dir.mktmpdir }
+  let(:path) { File.join(dir, 'test.sock') }
 
-  before do
-    allow(UNIXSocket).to receive(:new).and_return(mock_socket)
-  end
+  after { FileUtils.remove_entry(dir) }
 
-  describe '#initialize' do
-    context 'when socket connection is successful' do
-      it 'creates a new UNIXSocket' do
-        client = described_class.new
-        expect(UNIXSocket).to have_received(:new).with(described_class::SOCKET_PATH)
-      end
+  describe '.connect' do
+    it 'raises an Error when nothing listens' do
+      expect { described_class.connect(path, timeout: 0.2) }
+        .to raise_error(ParallelMatrixFormatter::Error, /no orchestrator listening at #{Regexp.escape(path)}/)
     end
 
-    context 'when socket connection fails initially but succeeds on retry' do
-      before do
-        allow(UNIXSocket).to receive(:new).and_raise(Errno::ENOENT).once.and_return(mock_socket)
+    context 'when a server listens' do
+      let(:server) { UNIXServer.new(path) }
+      let(:client) { described_class.connect(path, timeout: 1) }
+
+      after do
+        client.close
+        server.close
       end
 
-      it 'successfully connects after retries' do
-        client = described_class.new(retries: 1, delay: 0.01)
-        expect(client).to be_an_instance_of(described_class)
-      end
-    end
-
-    context 'when socket connection fails after all retries' do
-      before do
-        allow(UNIXSocket).to receive(:new).and_raise(Errno::ENOENT)
+      it 'returns a client' do
+        server
+        expect(client).to be_a(described_class)
       end
 
-      it 'raises Errno::ENOENT' do
-        expect { described_class.new(retries: 1, delay: 0.01) }.to raise_error(Errno::ENOENT)
+      it 'sends notifications as one JSON line each' do
+        server
+        client.notify(type: 'example', process: 2)
+        line = Timeout.timeout(5) { server.accept.gets }
+        expect(JSON.parse(line)).to eq('type' => 'example', 'process' => 2)
       end
     end
   end
 
-  describe '#notify' do
-    let(:client) { described_class.new }
-    let(:process_number) { 1 }
-    let(:message) { { status: :passed, progress: 0.5 } }
-    let(:expected_json) { { process_number: process_number, message: message }.to_json }
+  describe 'a round trip to the server' do
+    let(:server) { ParallelMatrixFormatter::Ipc::Server.new(path) }
+    let(:messages) { [] }
 
-    it 'sends a JSON-encoded message to the socket' do
-      client.notify(process_number, message)
-      expect(mock_socket).to have_received(:puts).with(expected_json)
-    end
-  end
-
-  describe '#close' do
-    let(:client) { described_class.new }
-
-    it 'closes the socket' do
+    before do
+      server
+      client = described_class.connect(path, timeout: 1)
+      client.notify(type: 'example', process: 2, status: 'passed')
       client.close
-      expect(mock_socket).to have_received(:close)
+      Timeout.timeout(5) do
+        server.each_message do |message|
+          messages << message
+          break if message['type'] == 'disconnected'
+        end
+      end
     end
 
-    it 'does not raise an error if socket is nil' do
-      allow(UNIXSocket).to receive(:new).and_return(nil) # Simulate failed initialization
-      client = described_class.new(retries: 0) rescue nil # Suppress initialization error
-      expect { client.close }.not_to raise_error
+    after { server.close }
+
+    it 'delivers the message to the server' do
+      expect(messages.first).to eq('type' => 'example', 'process' => 2, 'status' => 'passed')
+    end
+
+    it 'reports the disconnect of the process' do
+      expect(messages.last).to eq('type' => 'disconnected', 'process' => 2)
     end
   end
 end
