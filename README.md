@@ -138,6 +138,10 @@ The full schema, with the default values:
 # Redirect STDOUT and STDERR of every test process to /dev/null.
 suppress_output: true
 
+# How long the processes wait to connect to process 1, and process 1 waits for them. A process that has not
+# connected by then is reported as missing.
+connect_timeout_seconds: 120
+
 # Ten characters that replace the digits 0-9 in the time and the percentages.
 # Leave empty to keep plain digits.
 digits: ""
@@ -214,7 +218,8 @@ Every test process loads the formatter. Process 1 (`TEST_ENV_NUMBER` empty or `1
 orchestrator, which listens on a UNIX socket in the temporary directory (one per run). The other processes
 connect to it and send the result of every example and, at the end, a summary of their run. The orchestrator
 renders the progress lines and status symbols as messages arrive. When every process has sent its summary or has
-disconnected, it prints the consolidated summary.
+disconnected (or, without a pid file to consult, has not connected within `connect_timeout_seconds`), it prints
+the consolidated summary.
 
 The formatter detects the runner it is started by:
 
@@ -222,7 +227,7 @@ The formatter detects the runner it is started by:
 | --- | --- | --- |
 | `parallel_split_test` | `ParallelSplitTest.processes` | pid of the parent process |
 | `parallel_tests` | `PARALLEL_TEST_GROUPS` | name of the `PARALLEL_PID_FILE` |
-| none | 1 | pid of the parent process |
+| none | 1 | pid of the process |
 
 `parallel_tests` can start fewer processes than it announces: it drops empty groups (more processes than spec
 files) without correcting `PARALLEL_TEST_GROUPS`. So under `parallel_tests` the orchestrator does not wait for

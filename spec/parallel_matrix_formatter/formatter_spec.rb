@@ -4,7 +4,7 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
   subject(:formatter) { described_class.new(output) }
 
   let(:output) { StringIO.new }
-  let(:config) { { 'suppress_output' => false } }
+  let(:config) { { 'suppress_output' => false, 'connect_timeout_seconds' => 7 } }
   let(:test_env_number) { '' }
   let(:runner) { ParallelMatrixFormatter::Runner.new(process_count: 1, run_id: 'run-1') }
   let(:orchestrator) { instance_double(ParallelMatrixFormatter::NullOrchestrator, close: nil) }
@@ -63,7 +63,12 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
     it 'connects to the orchestrator of the run' do
       formatter.start(start_notification)
       expect(ParallelMatrixFormatter::Ipc::Client)
-        .to have_received(:connect).with(ParallelMatrixFormatter::Ipc.socket_path('run-1'))
+        .to have_received(:connect).with(ParallelMatrixFormatter::Ipc.socket_path('run-1'), timeout: 7)
+    end
+
+    it 'announces the process, so that it is missed even if it dies before its first example' do
+      formatter.start(start_notification)
+      expect(client).to have_received(:notify).with(process: 1, pid: Process.pid, ppid: Process.ppid, type: 'hello')
     end
   end
 
@@ -80,7 +85,8 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
     it 'identifies the process by its number and pids' do
       formatter.example_passed(notification)
-      expect(client).to have_received(:notify).with(hash_including(process: 1, pid: Process.pid, ppid: Process.ppid))
+      expect(client).to have_received(:notify)
+        .with(hash_including(type: 'example', process: 1, pid: Process.pid, ppid: Process.ppid))
     end
 
     it 'notifies about a pending example' do
@@ -104,7 +110,7 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
       it 'notifies as process 2' do
         formatter.example_passed(notification)
-        expect(client).to have_received(:notify).with(hash_including(process: 2))
+        expect(client).to have_received(:notify).with(hash_including(type: 'example', process: 2))
       end
     end
   end

@@ -33,6 +33,7 @@ module ParallelMatrixFormatter
     def initialize(output)
       config = Config.load
       super(display_output(config, output))
+      @connect_timeout = config['connect_timeout_seconds']
       @process_number = [ENV['TEST_ENV_NUMBER'].to_i, 1].max
       @runner = Runner.detect
       @orchestrator = Orchestrator.for(@process_number, @runner, self.output, config)
@@ -42,7 +43,10 @@ module ParallelMatrixFormatter
 
     def start(notification)
       @total_examples = notification.count
-      @client = Ipc::Client.connect(Ipc.socket_path(@runner.run_id))
+      @client = Ipc::Client.connect(Ipc.socket_path(@runner.run_id), timeout: @connect_timeout)
+      # Announces the process at once, so the orchestrator notices it dying
+      # even before its first example.
+      @client.notify(**sender, type: 'hello')
     end
 
     def example_started(_notification)

@@ -9,6 +9,11 @@
 # when something goes wrong and you need to see why.
 suppress_output: true
 
+# How long a process waits for process 1 to start listening, and process 1
+# waits for the others to connect. A process that never connects (for example
+# because spec_helper failed to load) is reported as missing once it passes.
+connect_timeout_seconds: 120
+
 # Ten characters that replace the digits 0-9 in the time and the percentages,
 # e.g. "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ". Leave empty to keep plain digits.
 digits: ""

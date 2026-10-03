@@ -56,6 +56,32 @@ RSpec.describe ParallelMatrixFormatter::Ipc::Server do
     end
   end
 
+  describe '#idle?' do
+    before { server }
+
+    it 'is true before any client connects' do
+      expect(server.idle?).to be(true)
+    end
+
+    it 'is false while a client is connected or waiting to be accepted' do
+      client
+      expect(server.idle?).to be(false)
+    end
+
+    it 'is false while the messages of a client that has gone are unread' do
+      client.puts('{"type":"example","process":3}')
+      client.close
+      expect(server.idle?).to be(false)
+    end
+
+    it 'becomes true once every client has disconnected and its messages are read' do
+      client.puts('{"type":"example","process":3}')
+      client.close
+      messages(2)
+      expect { Timeout.timeout(5) { sleep 0.01 until server.idle? } }.not_to raise_error
+    end
+  end
+
   describe '#close' do
     it 'removes the socket file' do
       server.close
