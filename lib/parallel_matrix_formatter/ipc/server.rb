@@ -10,7 +10,7 @@ module ParallelMatrixFormatter
     # When a client disconnects, a synthetic `disconnected` message carrying its
     # process number is queued, so a crashed process is noticed too.
     class Server
-      def initialize(path = Ipc.socket_path)
+      def initialize(path)
         FileUtils.rm_f(path)
         @path = path
         @socket = UNIXServer.new(path)
@@ -18,9 +18,14 @@ module ParallelMatrixFormatter
         @acceptor = Thread.new { accept_clients }
       end
 
-      # Yields messages in arrival order until the server is closed.
-      def each_message
-        while (message = @messages.pop)
+      # Yields messages in arrival order until the server is closed. With a
+      # poll interval it also yields nil whenever that long passes without a
+      # message, so the caller can check on the processes it is waiting for.
+      def each_message(poll_interval: nil)
+        loop do
+          message = @messages.pop(timeout: poll_interval)
+          break if message.nil? && @messages.closed?
+
           yield message
         end
       end

@@ -8,9 +8,9 @@ Gem::Specification.new do |spec|
   spec.authors = ['Volodymyr Shcherbyna']
   spec.email = ['scherbina.v@gmail.com']
 
-  spec.summary = 'Matrix digital rain RSpec formatter for parallel_split_test'
-  spec.description = 'An RSpec formatter that renders the progress of every parallel_split_test process ' \
-                     'as one Matrix-style digital rain and prints a single consolidated summary.'
+  spec.summary = 'Matrix digital rain RSpec formatter for parallel_split_test and parallel_tests'
+  spec.description = 'An RSpec formatter that renders the progress of every parallel_split_test or parallel_tests ' \
+                     'process as one Matrix-style digital rain and prints a single consolidated summary.'
   spec.homepage = 'https://github.com/vovka/parallel_matrix_formatter'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.2.0'

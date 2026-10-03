@@ -2,6 +2,26 @@
 
 require 'rspec/core/formatters/base_formatter'
 
+# RSpec requires only this file for --format ParallelMatrixFormatter::Formatter,
+# so it loads everything the formatter needs.
+require_relative 'error'
+require_relative 'config'
+require_relative 'output/silencer'
+require_relative 'runner'
+require_relative 'ipc'
+require_relative 'ipc/client'
+require_relative 'ipc/server'
+require_relative 'rendering/colors'
+require_relative 'rendering/digits'
+require_relative 'rendering/progress_update_policy'
+require_relative 'rendering/progress_column'
+require_relative 'rendering/progress_line'
+require_relative 'rendering/example_status'
+require_relative 'rendering/summary'
+require_relative 'rendering/display'
+require_relative 'null_orchestrator'
+require_relative 'orchestrator'
+
 module ParallelMatrixFormatter
   # The RSpec formatter loaded into every test process. It silences the
   # process, turns RSpec notifications into IPC messages for the orchestrator
@@ -14,14 +34,15 @@ module ParallelMatrixFormatter
       config = Config.load
       super(display_output(config, output))
       @process_number = [ENV['TEST_ENV_NUMBER'].to_i, 1].max
-      @orchestrator = Orchestrator.for(@process_number, total_processes, self.output, config)
+      @runner = Runner.detect
+      @orchestrator = Orchestrator.for(@process_number, @runner, self.output, config)
       @examples_run = 0
       @failures = []
     end
 
     def start(notification)
       @total_examples = notification.count
-      @client = Ipc::Client.connect
+      @client = Ipc::Client.connect(Ipc.socket_path(@runner.run_id))
     end
 
     def example_started(_notification)
@@ -42,9 +63,9 @@ module ParallelMatrixFormatter
     end
 
     def dump_summary(summary)
-      @client.notify(type: 'summary', process: @process_number, duration: summary.duration,
-                     examples: summary.example_count, failures: summary.failure_count,
-                     pending: summary.pending_count, failed_examples: @failures)
+      @client.notify(**sender, type: 'summary', duration: summary.duration,
+                               examples: summary.example_count, failures: summary.failure_count,
+                               pending: summary.pending_count, failed_examples: @failures)
     end
 
     def close(_notification)
@@ -53,12 +74,6 @@ module ParallelMatrixFormatter
     end
 
     private
-
-    # Under parallel_split_test every process is forked by the same runner,
-    # which records the process count before forking.
-    def total_processes
-      (ParallelSplitTest.processes if defined?(ParallelSplitTest)) || 1
-    end
 
     # The silenced terminal is where the display goes, unless RSpec was asked
     # to write to a file with --out.
@@ -69,9 +84,15 @@ module ParallelMatrixFormatter
       output.is_a?(File) ? output : terminal
     end
 
+    # Identifies this process to the orchestrator: its number and the pids it
+    # can be told apart by in the runner's pid file.
+    def sender
+      { process: @process_number, pid: Process.pid, ppid: Process.ppid }
+    end
+
     def report(status)
       progress = @examples_run.fdiv(@total_examples)
-      @client.notify(type: 'example', process: @process_number, status: status, progress: progress)
+      @client.notify(**sender, type: 'example', status: status, progress: progress)
     end
 
     def failure_details(notification)

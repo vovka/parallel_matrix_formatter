@@ -45,7 +45,7 @@ module ParallelMatrixFormatter
       end
 
       def all_complete?(progress)
-        progress.size == @total_processes && progress.values.all? { |value| value >= 1.0 }
+        progress.size >= @total_processes && progress.values.all? { |value| value >= 1.0 }
       end
     end
   end
