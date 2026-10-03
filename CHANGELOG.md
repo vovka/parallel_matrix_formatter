@@ -18,17 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty.
 - The closing `Summary:` of `parallel_split_test` is no longer empty: every process writes its totals line to the
   stream RSpec gave its formatter, which `parallel_split_test` records.
-
-### Changed
-- README: documents other formatters writing to stdout, the `--out` handling of `parallel_split_test` and the
-  default colors.
-- The orchestrator waits for the processes that actually connected instead of trusting the announced number of
-  processes. Under `parallel_tests` it also waits for every process listed in the run's pid file, so it neither
-  hangs when `parallel_tests` starts fewer processes than announced nor finishes before a slow process reports.
-- The socket is named after the run (the pid file under `parallel_tests`, the parent pid under `parallel_split_test`);
-  `Ipc.socket_path`, `Ipc::Server.new` and `Ipc::Client.connect` take the path explicitly.
-
-### Fixed
 - Process 1 no longer waits forever for a process that died before its first example: every process announces
   itself as soon as it connects. Without a pid file (`parallel_split_test`) process 1 stops waiting for a process
   that has not connected within the new `connect_timeout_seconds` setting (default 120, the timeout the processes
@@ -39,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   two `rspec` runs started from the same shell no longer remove each other's socket.
 - `--format ParallelMatrixFormatter::Formatter` works without requiring the gem first; the formatter file now
   loads everything it needs.
+
+### Changed
+- README: documents other formatters writing to stdout, the `--out` handling of `parallel_split_test` and the
+  default colors.
+- The orchestrator waits for the processes that actually connected instead of trusting the announced number of
+  processes. Under `parallel_tests` it also waits for every process listed in the run's pid file, so it neither
+  hangs when `parallel_tests` starts fewer processes than announced nor finishes before a slow process reports.
+- The socket is named after the run (the pid file under `parallel_tests`, the parent pid under `parallel_split_test`);
+  `Ipc.socket_path`, `Ipc::Server.new` and `Ipc::Client.connect` take the path explicitly.
 
 ## [0.1.0] - 2026-10-03
 
