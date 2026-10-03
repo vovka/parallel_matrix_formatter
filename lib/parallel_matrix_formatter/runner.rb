@@ -11,6 +11,9 @@ module ParallelMatrixFormatter
   # ParallelSplitTest knows the count and the parent pid identifies the run.
   # parallel_tests spawns every process from one parallel_rspec, which exports
   # the requested number of groups and a pid file that is unique per run.
+  # Without a runner the only process is process 1 itself, so its own pid
+  # identifies the run; the parent pid would be shared by every rspec started
+  # from the same shell.
   Runner = Struct.new(:process_count, :run_id, :pid_file, keyword_init: true) do
     def self.detect
       if defined?(::ParallelSplitTest)
@@ -18,7 +21,7 @@ module ParallelMatrixFormatter
       elsif ENV['PARALLEL_TEST_GROUPS']
         parallel_tests
       else
-        new(process_count: 1, run_id: Process.ppid)
+        new(process_count: 1, run_id: Process.pid)
       end
     end
 

@@ -203,7 +203,7 @@ The formatter detects the runner it is started by:
 | --- | --- | --- |
 | `parallel_split_test` | `ParallelSplitTest.processes` | pid of the parent process |
 | `parallel_tests` | `PARALLEL_TEST_GROUPS` | name of the `PARALLEL_PID_FILE` |
-| none | 1 | pid of the parent process |
+| none | 1 | pid of the process |
 
 `parallel_tests` can start fewer processes than it announces: it drops empty groups (more processes than spec
 files) without correcting `PARALLEL_TEST_GROUPS`. So under `parallel_tests` the orchestrator does not wait for

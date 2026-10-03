@@ -18,8 +18,8 @@ RSpec.describe ParallelMatrixFormatter::Runner do
         expect(runner.process_count).to eq(1)
       end
 
-      it 'identifies the run by the pid of the parent process' do
-        expect(runner.run_id).to eq(Process.ppid)
+      it 'identifies the run by its own pid, which no concurrent run shares' do
+        expect(runner.run_id).to eq(Process.pid)
       end
 
       it 'has no pid file' do
