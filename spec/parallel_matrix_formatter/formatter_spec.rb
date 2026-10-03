@@ -112,7 +112,8 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
   describe '#dump_summary' do
     let(:summary) do
       instance_double(RSpec::Core::Notifications::SummaryNotification,
-                      example_count: 4, failure_count: 1, pending_count: 2, duration: 1.5)
+                      example_count: 4, failure_count: 1, pending_count: 2, duration: 1.5,
+                      errors_outside_of_examples_count: 0, totals_line: '4 examples, 1 failure')
     end
 
     before do
@@ -126,6 +127,10 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
         .with(hash_including(type: 'summary', process: 1, examples: 4, failures: 1, pending: 2, duration: 1.5))
     end
 
+    it 'sends the number of errors outside of the examples' do
+      expect(client).to have_received(:notify).with(hash_including(type: 'summary', errors: 0))
+    end
+
     it 'identifies the process by its number and pids' do
       expect(client).to have_received(:notify)
         .with(hash_including(type: 'summary', process: 1, pid: Process.pid, ppid: Process.ppid))
@@ -133,6 +138,32 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
     it 'sends the details of the failed examples' do
       expect(client).to have_received(:notify).with(hash_including(failed_examples: [failure_details]))
+    end
+  end
+
+  describe 'the totals line for the runner' do
+    let(:summary) do
+      instance_double(RSpec::Core::Notifications::SummaryNotification,
+                      example_count: 4, failure_count: 1, pending_count: 2, duration: 1.5,
+                      errors_outside_of_examples_count: 0, totals_line: '4 examples, 1 failure')
+    end
+
+    before { formatter.start(start_notification) }
+
+    it 'is not written when the output is the display itself' do
+      formatter.dump_summary(summary)
+      expect(output.string).to eq('')
+    end
+
+    context 'when the display goes to the silenced terminal' do
+      let(:config) { { 'suppress_output' => true } }
+
+      before { allow(ParallelMatrixFormatter::Output::Silencer).to receive(:silence).and_return(StringIO.new) }
+
+      it 'is written to the stream RSpec handed over, for parallel_split_test to record' do
+        formatter.dump_summary(summary)
+        expect(output.string).to eq("4 examples, 1 failure\n")
+      end
     end
   end
 
