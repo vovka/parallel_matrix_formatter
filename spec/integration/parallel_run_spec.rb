@@ -34,6 +34,10 @@ RSpec.describe 'a parallel run' do
     expect(@statuses.map(&:exitstatus)).to eq([1, 1])
   end
 
+  it 'points at the stderr logs of the processes' do
+    expect(output).to match(/parallel_matrix_formatter-\d+-1\.stderr\.log/)
+  end
+
   it 'prints the totals of both processes' do
     expect(output).to include('8 examples, 2 failures, 2 pending')
   end

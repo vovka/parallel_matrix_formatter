@@ -17,7 +17,8 @@ module ParallelMatrixFormatter
       # @param missing_processes [Array<Integer>] processes that never sent a summary
       def render(summaries, missing_processes)
         failures = summaries.flat_map { |summary| summary['failed_examples'] }
-        sections = [failures_section(failures), warnings(missing_processes), totals(summaries), rerun_section(failures)]
+        sections = [failures_section(failures), warnings(missing_processes),
+                    logs_section(summaries, missing_processes), totals(summaries), rerun_section(failures)]
         "\n#{sections.compact.join("\n")}"
       end
 
@@ -42,6 +43,18 @@ module ParallelMatrixFormatter
         processes = missing_processes.join(', ')
         "\n#{Colors.wrap("WARNING: no summary received from process #{processes}, it probably crashed. " \
                          'Set suppress_output: false to see its output.', :yellow)}"
+      end
+
+      # The stderr of the processes is silenced into logs, so point at them
+      # when something went wrong: a missing process, an error outside of the
+      # examples (a load error) or anything a process wrote to stderr.
+      def logs_section(summaries, missing_processes)
+        logs = Output::Silencer.stderr_logs
+        errors = summaries.sum { |summary| summary['errors'].to_i }
+        return unless errors.positive? || missing_processes.any? || logs.any? { |log| File.size?(log) }
+
+        title = Colors.wrap("stderr of the processes (#{errors} errors outside of examples):", :yellow)
+        "\n#{title}\n#{logs.join("\n")}"
       end
 
       def totals(summaries)
