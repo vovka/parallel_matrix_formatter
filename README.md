@@ -185,8 +185,11 @@ disconnected, it prints the consolidated summary.
 ```sh
 bundle install
 bundle exec rake          # runs the specs and RuboCop
+bundle exec rspec         # runs the specs in one process with RSpec's own formatter
 ruby demo/matrix_demo.rb  # previews the display without a test suite
 ```
+
+The specs eat their own dog food: `rake` (and CI) runs them with `parallel_split_test` and this formatter.
 
 ## Contributing
 

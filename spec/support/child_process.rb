@@ -3,7 +3,8 @@
 require 'timeout'
 
 # Runs code that changes process-wide state (file descriptors, ENV) in a forked
-# child and returns everything the child wrote to stdout and stderr.
+# child and returns everything the child wrote to stdout and stderr. The child
+# starts unsilenced, even when the suite itself runs with the formatter.
 module ChildProcess
   def capture_from_child(&block)
     reader, writer = IO.pipe
@@ -16,6 +17,7 @@ module ChildProcess
 
   def run_child(reader, writer)
     reader.close
+    ParallelMatrixFormatter::Output::Silencer.instance_variable_set(:@terminal, nil)
     STDOUT.reopen(writer)
     STDERR.reopen(writer)
     yield

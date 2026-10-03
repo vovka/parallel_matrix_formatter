@@ -13,6 +13,7 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
   before do
     stub_const('ENV', ENV.to_h.merge('TEST_ENV_NUMBER' => test_env_number))
+    hide_const('ParallelSplitTest')
     allow(ParallelMatrixFormatter::Config).to receive(:load).and_return(config)
     allow(ParallelMatrixFormatter::Orchestrator).to receive(:for).and_return(orchestrator)
     allow(ParallelMatrixFormatter::Ipc::Client).to receive(:connect).and_return(client)
