@@ -5,13 +5,45 @@ Instead of interleaved output from every process, it prints one shared Matrix-st
 the percentage of each process surrounded by falling katakana "rain", a colored symbol for every finished example,
 and, at the end, a single consolidated RSpec-style summary with all failures from all processes.
 
-## Screenshots
+## What you are looking at
 
-![Matrix digital rain output](docs/images/matrix_digital_rain_example.png)
+![Four processes running a suite as Matrix digital rain](docs/images/rain.png)
 
-The same display after a small configuration change (plain digits, emoji symbols):
+A suite of 480 examples split across four processes. Nothing on this screen is a log line: every glyph is a
+piece of the test run.
 
-![Customized output](docs/images/arabic_number_with_emoji.png)
+- **The rain.** Each row starts with a progress line: the time, then one column per process. A column is ten
+  characters wide, with the percentage of that process in red and random green half-width katakana filling the
+  rest. The katakana are drawn afresh for every row, so as the rows stack up the columns flicker and fall like
+  the digital rain, while the red percentages climb from 1% to 100% inside it.
+- **Passed examples.** After the progress line, every finished example adds one more symbol to the row, in the
+  order the results arrive from all processes. A passed example is one random green katakana, so a healthy suite
+  simply keeps raining.
+- **Failed examples.** A failure is the same kind of glyph, but red. It is a glitch in the Matrix: easy to miss
+  if you are not looking, impossible to unsee once you are.
+- **Pending examples.** A pending or skipped example becomes a 🥄. Do not try to run the pending test, that is
+  impossible. Instead, only try to realize the truth: there is no spoon.
+- **Silence.** Every example of this suite prints to stdout. None of it reaches the screen, see
+  [Output suppression](#output-suppression).
+
+Every row has a column for every process; a process that has not reported yet shows 0%, as three of them do in
+the first row. By default a new progress line is printed once a minute, and once more when every process reaches
+100%; this run uses `interval_seconds: 2` so the short demo suite produces enough rows.
+
+When the last process finishes, the rain stops and one consolidated report follows, in the style of RSpec's own:
+the failures of all processes with their messages in red and backtraces in cyan, the wall-clock time next to the
+time summed across processes, the totals (red when something failed, yellow when examples are only pending, green
+otherwise) and the commands to rerun the failures. The first line and the closing `Summary:` block are printed by
+`parallel_split_test` itself.
+
+![A complete run: rain followed by the consolidated summary](docs/images/full_run.png)
+
+The time and the percentages can go down the rabbit hole too. With `digits: "ﾛｲｸﾖﾑﾗﾚﾇﾒﾜ"` each digit 0-9 is
+replaced by the character at that position:
+
+![Katakana digits](docs/images/katakana_digits.png)
+
+All symbols, colors, widths and the update frequency are configurable, see [Configuration](#configuration).
 
 ## Installation
 
