@@ -1,41 +1,32 @@
-require 'singleton'
+# frozen_string_literal: true
+
 require 'yaml'
-require 'erb'
 
 module ParallelMatrixFormatter
-  # The Config class is responsible for loading and parsing the configuration
-  # for the ParallelMatrixFormatter gem from `config/parallel_matrix_formatter.yml`.
-  # It provides access to various configuration settings, including suppression
-  # options and update renderer configurations, and uses `Config::Parser` to
-  # process specific configuration elements.
-  class Config
-    @parsers = []
+  # Loads the configuration: the gem's defaults deep-merged with the project's
+  # own file, so a project only has to spell out the keys it changes.
+  module Config
+    DEFAULTS_PATH = File.expand_path('../../config/parallel_matrix_formatter.yml', __dir__)
+    PROJECT_PATHS = ['parallel_matrix_formatter.yml', 'config/parallel_matrix_formatter.yml'].freeze
 
-    def self.register_parser(parser)
-      @parsers << parser
+    module_function
+
+    def load(path = project_path)
+      defaults = read(DEFAULTS_PATH)
+      path ? deep_merge(defaults, read(path)) : defaults
     end
 
-    register_parser(ProgressColumnParser)
-
-    attr_accessor :output_suppressor, :update_renderer
-
-    def initialize
-      raw = YAML.load_file(File.expand_path('../../config/parallel_matrix_formatter.yml', __dir__))
-      parsed = parse_config(raw)
-
-      @output_suppressor = parsed['output_suppressor']
-      @update_renderer = parsed['update_renderer']
+    def project_path
+      ENV['PARALLEL_MATRIX_FORMATTER_CONFIG'] || PROJECT_PATHS.find { |path| File.exist?(path) }
     end
 
-    private
-
-    def parse_config(raw)
-      self.class.parse_config(raw)
+    def read(path)
+      YAML.safe_load(File.read(path)) || {}
     end
 
-    def self.parse_config(raw)
-      @parsers.each_with_object(raw) do |parser, raw|
-        raw = parser.parse(raw)
+    def deep_merge(base, overrides)
+      base.merge(overrides) do |_key, old_value, new_value|
+        old_value.is_a?(Hash) && new_value.is_a?(Hash) ? deep_merge(old_value, new_value) : new_value
       end
     end
   end

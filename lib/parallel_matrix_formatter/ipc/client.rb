@@ -1,36 +1,37 @@
 # frozen_string_literal: true
-require 'socket'
+
 require 'json'
+require 'socket'
 
 module ParallelMatrixFormatter
   module Ipc
-    # The Client class is responsible for establishing a connection to the IPC server
-    # (via a UNIX socket) and sending messages to it. It handles connection retries
-    # and provides a `notify` method to send structured data to the server.
+    # Sends messages to the orchestrator's server.
     class Client
-      SOCKET_PATH = "/tmp/parallel_matrix_formatter.sock"
+      # Process 1 may still be loading spec files when the others start.
+      CONNECT_TIMEOUT = 120
 
-      def initialize(retries: 10, delay: 1)
-        attempts = 0
+      def self.connect(path = Ipc.socket_path, timeout: CONNECT_TIMEOUT)
+        deadline = Time.now + timeout
         begin
-          @socket = UNIXSocket.new(SOCKET_PATH)
-        rescue Errno::ENOENT => e
-          attempts += 1
-          if attempts < retries
-            sleep delay
-            retry
-          else
-            raise e
-          end
+          new(UNIXSocket.new(path))
+        rescue Errno::ENOENT, Errno::ECONNREFUSED
+          raise Error, "no orchestrator listening at #{path} after #{timeout}s" if Time.now > deadline
+
+          sleep 0.1
+          retry
         end
       end
 
-      def notify(process_number, message)
-        @socket.puts({ process_number: process_number, message: message }.to_json)
+      def initialize(socket)
+        @socket = socket
+      end
+
+      def notify(message)
+        @socket.puts(JSON.generate(message))
       end
 
       def close
-        @socket.close if @socket
+        @socket.close
       end
     end
   end
