@@ -55,7 +55,7 @@ gem 'parallel_matrix_formatter', group: :test
 
 and run `bundle install`.
 
-Requirements: Ruby 3.1 or newer, `rspec-core` 3.x. The processes talk over UNIX sockets, so Linux and macOS are
+Requirements: Ruby 3.2 or newer, `rspec-core` 3.x. The processes talk over UNIX sockets, so Linux and macOS are
 supported; Windows is not.
 
 ## Usage
