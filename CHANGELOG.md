@@ -12,7 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `parallel_split_test`. The formatter detects the runner and takes the number of processes and the identity of
   the run from it; the README lists the `parallel_rspec` options that are not supported.
 
+### Fixed
+- The stderr of every process is written to a log file in the temporary directory instead of `/dev/null`; the
+  summary lists the logs when a process is missing, an error happened outside of the examples or a log is not
+  empty.
+- The closing `Summary:` of `parallel_split_test` is no longer empty: every process writes its totals line to the
+  stream RSpec gave its formatter, which `parallel_split_test` records.
+
 ### Changed
+- README: documents other formatters writing to stdout, the `--out` handling of `parallel_split_test` and the
+  default colors.
 - The orchestrator waits for the processes that actually connected instead of trusting the announced number of
   processes. Under `parallel_tests` it also waits for every process listed in the run's pid file, so it neither
   hangs when `parallel_tests` starts fewer processes than announced nor finishes before a slow process reports.
