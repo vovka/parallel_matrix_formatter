@@ -40,7 +40,7 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
   end
 
   describe '.for' do
-    let(:config) { {} }
+    let(:config) { { 'connect_timeout_seconds' => 1 } }
 
     it 'returns a NullOrchestrator for every process but the first' do
       expect(described_class.for(2, runner, output, config)).to be_a(ParallelMatrixFormatter::NullOrchestrator)
@@ -104,6 +104,20 @@ RSpec.describe ParallelMatrixFormatter::Orchestrator do
       end
 
       it 'prints the summary of the others' do
+        expect(display).to have_received(:summary).with([hash_including('process' => 1)], [2])
+      end
+    end
+
+    context 'when a process never connects' do
+      subject(:orchestrator) { described_class.new(runner, output, display, 0.2) }
+
+      before do
+        orchestrator
+        send_messages(summary(1))
+        close_orchestrator
+      end
+
+      it 'gives up on it after the connect timeout and reports it as missing' do
         expect(display).to have_received(:summary).with([hash_including('process' => 1)], [2])
       end
     end

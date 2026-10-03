@@ -10,10 +10,10 @@ RSpec.describe 'a parallel run' do
   suite = File.join(fixtures, 'noisy_suite.rb')
   fake_parallel_split_test = File.join(fixtures, 'fake_parallel_split_test.rb')
 
-  def run_process(test_env_number, suite, fake_parallel_split_test)
+  def run_process(test_env_number, suite, fake_parallel_split_test, *options)
     output = Tempfile.new('parallel_matrix_formatter')
     command = [Gem.ruby, '-Ilib', Gem.bin_path('rspec-core', 'rspec'), '--require', fake_parallel_split_test,
-               '--format', 'ParallelMatrixFormatter::Formatter', suite]
+               '--format', 'ParallelMatrixFormatter::Formatter', *options, suite]
     pid = Process.spawn({ 'TEST_ENV_NUMBER' => test_env_number }, *command, out: output.path, err: output.path)
     [pid, output]
   end
@@ -32,6 +32,10 @@ RSpec.describe 'a parallel run' do
 
   it 'exits with a failure status in both processes' do
     expect(@statuses.map(&:exitstatus)).to eq([1, 1])
+  end
+
+  it 'points at the stderr logs of the processes' do
+    expect(output).to match(/parallel_matrix_formatter-\d+-1\.stderr\.log/)
   end
 
   it 'prints the totals of both processes' do
@@ -56,5 +60,17 @@ RSpec.describe 'a parallel run' do
 
   it 'prints nothing from the other process' do
     expect(File.read(@other_output.path)).to eq('')
+  end
+
+  context 'when aborted by --fail-fast' do
+    before(:all) do
+      pid1, @output = run_process('', suite, fake_parallel_split_test, '--fail-fast')
+      pid2, @other_output = run_process('2', suite, fake_parallel_split_test, '--fail-fast')
+      Timeout.timeout(60) { [pid1, pid2].each { |pid| Process.wait(pid) } }
+    end
+
+    it 'still prints the summary up to the first failure of each process' do
+      expect(output).to include('1) noisy suite fails', '2) noisy suite fails').and match(/[2-7] examples, 2 failures/)
+    end
   end
 end

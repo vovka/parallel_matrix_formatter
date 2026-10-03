@@ -91,6 +91,29 @@ RSpec.describe ParallelMatrixFormatter::Rendering::Summary do
       end
     end
 
+    context 'when a process wrote to stderr' do
+      let(:log) { Tempfile.new('stderr') }
+
+      before do
+        log.write('boom')
+        log.flush
+        allow(ParallelMatrixFormatter::Output::Silencer).to receive(:stderr_logs).and_return([log.path])
+      end
+
+      after { log.close! }
+
+      it 'lists the log' do
+        expect(output).to include(log.path)
+      end
+    end
+
+    context 'when stderr logs are empty and nothing went wrong' do
+      it 'does not list them' do
+        allow(ParallelMatrixFormatter::Output::Silencer).to receive(:stderr_logs).and_return(['/tmp/empty.log'])
+        expect(output).not_to include('/tmp/empty.log')
+      end
+    end
+
     context 'when a process never sent a summary' do
       let(:missing_processes) { [2, 3] }
 

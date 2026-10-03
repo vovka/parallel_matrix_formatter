@@ -4,7 +4,7 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
   subject(:formatter) { described_class.new(output) }
 
   let(:output) { StringIO.new }
-  let(:config) { { 'suppress_output' => false } }
+  let(:config) { { 'suppress_output' => false, 'connect_timeout_seconds' => 7 } }
   let(:test_env_number) { '' }
   let(:runner) { ParallelMatrixFormatter::Runner.new(process_count: 1, run_id: 'run-1') }
   let(:orchestrator) { instance_double(ParallelMatrixFormatter::NullOrchestrator, close: nil) }
@@ -63,7 +63,12 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
     it 'connects to the orchestrator of the run' do
       formatter.start(start_notification)
       expect(ParallelMatrixFormatter::Ipc::Client)
-        .to have_received(:connect).with(ParallelMatrixFormatter::Ipc.socket_path('run-1'))
+        .to have_received(:connect).with(ParallelMatrixFormatter::Ipc.socket_path('run-1'), timeout: 7)
+    end
+
+    it 'announces the process, so that it is missed even if it dies before its first example' do
+      formatter.start(start_notification)
+      expect(client).to have_received(:notify).with(process: 1, pid: Process.pid, ppid: Process.ppid, type: 'hello')
     end
   end
 
@@ -80,7 +85,8 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
     it 'identifies the process by its number and pids' do
       formatter.example_passed(notification)
-      expect(client).to have_received(:notify).with(hash_including(process: 1, pid: Process.pid, ppid: Process.ppid))
+      expect(client).to have_received(:notify)
+        .with(hash_including(type: 'example', process: 1, pid: Process.pid, ppid: Process.ppid))
     end
 
     it 'notifies about a pending example' do
@@ -104,7 +110,7 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
       it 'notifies as process 2' do
         formatter.example_passed(notification)
-        expect(client).to have_received(:notify).with(hash_including(process: 2))
+        expect(client).to have_received(:notify).with(hash_including(type: 'example', process: 2))
       end
     end
   end
@@ -112,7 +118,8 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
   describe '#dump_summary' do
     let(:summary) do
       instance_double(RSpec::Core::Notifications::SummaryNotification,
-                      example_count: 4, failure_count: 1, pending_count: 2, duration: 1.5)
+                      example_count: 4, failure_count: 1, pending_count: 2, duration: 1.5,
+                      errors_outside_of_examples_count: 0, totals_line: '4 examples, 1 failure')
     end
 
     before do
@@ -126,6 +133,10 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
         .with(hash_including(type: 'summary', process: 1, examples: 4, failures: 1, pending: 2, duration: 1.5))
     end
 
+    it 'sends the number of errors outside of the examples' do
+      expect(client).to have_received(:notify).with(hash_including(type: 'summary', errors: 0))
+    end
+
     it 'identifies the process by its number and pids' do
       expect(client).to have_received(:notify)
         .with(hash_including(type: 'summary', process: 1, pid: Process.pid, ppid: Process.ppid))
@@ -133,6 +144,32 @@ RSpec.describe ParallelMatrixFormatter::Formatter do
 
     it 'sends the details of the failed examples' do
       expect(client).to have_received(:notify).with(hash_including(failed_examples: [failure_details]))
+    end
+  end
+
+  describe 'the totals line for the runner' do
+    let(:summary) do
+      instance_double(RSpec::Core::Notifications::SummaryNotification,
+                      example_count: 4, failure_count: 1, pending_count: 2, duration: 1.5,
+                      errors_outside_of_examples_count: 0, totals_line: '4 examples, 1 failure')
+    end
+
+    before { formatter.start(start_notification) }
+
+    it 'is not written when the output is the display itself' do
+      formatter.dump_summary(summary)
+      expect(output.string).to eq('')
+    end
+
+    context 'when the display goes to the silenced terminal' do
+      let(:config) { { 'suppress_output' => true } }
+
+      before { allow(ParallelMatrixFormatter::Output::Silencer).to receive(:silence).and_return(StringIO.new) }
+
+      it 'is written to the stream RSpec handed over, for parallel_split_test to record' do
+        formatter.dump_summary(summary)
+        expect(output.string).to eq("4 examples, 1 failure\n")
+      end
     end
   end
 

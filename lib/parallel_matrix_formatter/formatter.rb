@@ -33,6 +33,8 @@ module ParallelMatrixFormatter
     def initialize(output)
       config = Config.load
       super(display_output(config, output))
+      @connect_timeout = config['connect_timeout_seconds']
+      @stream = output
       @process_number = [ENV['TEST_ENV_NUMBER'].to_i, 1].max
       @runner = Runner.detect
       @orchestrator = Orchestrator.for(@process_number, @runner, self.output, config)
@@ -42,7 +44,10 @@ module ParallelMatrixFormatter
 
     def start(notification)
       @total_examples = notification.count
-      @client = Ipc::Client.connect(Ipc.socket_path(@runner.run_id))
+      @client = Ipc::Client.connect(Ipc.socket_path(@runner.run_id), timeout: @connect_timeout)
+      # Announces the process at once, so the orchestrator notices it dying
+      # even before its first example.
+      @client.notify(**sender, type: 'hello')
     end
 
     def example_started(_notification)
@@ -63,9 +68,11 @@ module ParallelMatrixFormatter
     end
 
     def dump_summary(summary)
+      record_totals(summary)
       @client.notify(**sender, type: 'summary', duration: summary.duration,
                                examples: summary.example_count, failures: summary.failure_count,
-                               pending: summary.pending_count, failed_examples: @failures)
+                               pending: summary.pending_count, errors: summary.errors_outside_of_examples_count,
+                               failed_examples: @failures)
     end
 
     def close(_notification)
@@ -82,6 +89,14 @@ module ParallelMatrixFormatter
 
       terminal = Output::Silencer.silence
       output.is_a?(File) ? output : terminal
+    end
+
+    # parallel_split_test builds its closing "Summary:" from what every process
+    # wrote to the stream RSpec handed to the formatter. The display goes to the
+    # silenced terminal instead, so the totals line goes to the stream, which
+    # parallel_split_test records while its own stdout is silenced.
+    def record_totals(summary)
+      @stream.puts summary.totals_line unless @stream.equal?(output)
     end
 
     # Identifies this process to the orchestrator: its number and the pids it

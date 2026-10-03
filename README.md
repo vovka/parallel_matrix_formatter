@@ -138,6 +138,10 @@ The full schema, with the default values:
 # Redirect STDOUT and STDERR of every test process to /dev/null.
 suppress_output: true
 
+# How long the processes wait to connect to process 1, and process 1 waits for them. A process that has not
+# connected by then is reported as missing.
+connect_timeout_seconds: 120
+
 # Ten characters that replace the digits 0-9 in the time and the percentages.
 # Leave empty to keep plain digits.
 digits: ""
@@ -172,7 +176,8 @@ example_status:
 ```
 
 Colors can be any name known to RSpec's console codes: `black`, `red`, `green`, `yellow`, `blue`, `magenta`,
-`cyan`, `white` and their `bold_*` variants. Colors are always emitted, because CI logs render ANSI codes; set the
+`cyan`, `white` and their `bold_*` variants. Colors are always emitted, even when stdout is not a terminal, because
+CI logs render ANSI codes; set the
 `NO_COLOR` environment variable to turn them off.
 
 Example override: emoji for the examples, and a progress line whenever a process advances by 10 percent
@@ -204,8 +209,18 @@ deprecation warnings, output of C extensions and child processes therefore canno
   RUBYOPT="-rparallel_matrix_formatter/silence" bundle exec parallel_rspec -o "--format ParallelMatrixFormatter::Formatter" spec
   ```
 
-- Suppression also hides crashes. When a process dies without reporting, the summary shows a yellow warning
-  naming it. To see why, set `suppress_output: false`.
+- STDOUT goes to `/dev/null`, but STDERR of every process goes to a log file in the temporary directory
+  (`parallel_matrix_formatter-<run>-<process>.stderr.log`), so crashes, load errors and warnings are not lost.
+  When a process is missing, an error happened outside of the examples or a log is not empty, the summary lists
+  the logs. A process that dies without reporting is also named in a yellow warning.
+- The closing `Summary:` of `parallel_split_test` is built from what each process writes to the stream RSpec
+  hands to its formatter, so every process writes its own totals line (`3 examples, 0 failures`) to that stream,
+  which is recorded but not displayed. `parallel_tests` totals the `N examples, M failures` lines it reads from
+  stdout; the consolidated totals the display prints in process 1 are the only such line, so its total is right.
+- Another formatter writing to stdout (for example `--format progress`) is silenced too. Send it to a file:
+  `--format progress --out progress.txt`. `parallel_split_test` only rewrites the first `-o`/`--out` per process
+  (to `name.<process>.ext`, merged afterwards), so a second formatter with `--out` may be written by every
+  process to the same file.
 - If you pass `--out FILE` to RSpec, the display is written to that file instead of the terminal.
 
 ## How it works
@@ -214,7 +229,8 @@ Every test process loads the formatter. Process 1 (`TEST_ENV_NUMBER` empty or `1
 orchestrator, which listens on a UNIX socket in the temporary directory (one per run). The other processes
 connect to it and send the result of every example and, at the end, a summary of their run. The orchestrator
 renders the progress lines and status symbols as messages arrive. When every process has sent its summary or has
-disconnected, it prints the consolidated summary.
+disconnected (or, without a pid file to consult, has not connected within `connect_timeout_seconds`), it prints
+the consolidated summary.
 
 The formatter detects the runner it is started by:
 
@@ -222,7 +238,7 @@ The formatter detects the runner it is started by:
 | --- | --- | --- |
 | `parallel_split_test` | `ParallelSplitTest.processes` | pid of the parent process |
 | `parallel_tests` | `PARALLEL_TEST_GROUPS` | name of the `PARALLEL_PID_FILE` |
-| none | 1 | pid of the parent process |
+| none | 1 | pid of the process |
 
 `parallel_tests` can start fewer processes than it announces: it drops empty groups (more processes than spec
 files) without correcting `PARALLEL_TEST_GROUPS`. So under `parallel_tests` the orchestrator does not wait for
