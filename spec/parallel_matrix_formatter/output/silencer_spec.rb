@@ -40,7 +40,8 @@ RSpec.describe ParallelMatrixFormatter::Output::Silencer do
 
   describe '.silenced?' do
     it 'is false until the process is silenced' do
-      expect(described_class.silenced?).to be(false)
+      output = capture_from_child { STDOUT.write(described_class.silenced?) }
+      expect(output).to eq('false')
     end
 
     it 'is true once the process is silenced' do

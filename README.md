@@ -55,7 +55,7 @@ gem 'parallel_matrix_formatter', group: :test
 
 and run `bundle install`.
 
-Requirements: Ruby 2.7 or newer, `rspec-core` 3.x. The processes talk over UNIX sockets, so Linux and macOS are
+Requirements: Ruby 3.2 or newer, `rspec-core` 3.x. The processes talk over UNIX sockets, so Linux and macOS are
 supported; Windows is not.
 
 ## Usage
@@ -185,8 +185,14 @@ disconnected, it prints the consolidated summary.
 ```sh
 bundle install
 bundle exec rake          # runs the specs and RuboCop
+bundle exec rspec         # runs the specs in one process with RSpec's own formatter
 ruby demo/matrix_demo.rb  # previews the display without a test suite
 ```
+
+The specs eat their own dog food: `rake` (and CI) runs them with `parallel_split_test` and this formatter. CI
+adds [`.github/parallel_matrix_formatter.yml`](.github/parallel_matrix_formatter.yml), which prints a progress line
+whenever a process advances by 10 percent; to see the same locally:
+`PARALLEL_MATRIX_FORMATTER_CONFIG=.github/parallel_matrix_formatter.yml bundle exec rake`.
 
 ## Contributing
 
